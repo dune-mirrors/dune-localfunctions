@@ -1,8 +1,7 @@
 # set up project
-project("dune-localfunctions" C CXX)
-
-# general stuff
 cmake_minimum_required(VERSION 3.13)
+project(dune-localfunctions VERSION 2.8.0 LANGUAGES CXX)
+
 
 # guess dune-common build dir
 if(NOT (dune-common_DIR OR dune-common_ROOT OR
