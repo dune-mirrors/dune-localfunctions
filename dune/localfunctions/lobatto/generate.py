@@ -18,7 +18,7 @@ def l (k, x):
   elif k == 1:
     return (1+x)/2
   else:
-    return 1/sqrt(2/(2*k-1)) * integrate(L(k-1,y),(y,-1,x))
+    return integrate(L(k-1,y),(y,-1,x))
 
 def phi (k, x):
   return l(k+2,x) / l(0,x) / l(1,x)
@@ -34,15 +34,27 @@ def l_ (k, x):
 def phi_ (k, x):
   return l_(k+2,x).as_poly(x) / l_(0,x).as_poly(x) / l_(1,x).as_poly(x)
 
-factors = [sympify('sqrt(6)'),sympify('sqrt(10)'),sympify('sqrt(14)'),
-           sympify('sqrt(2)'),sympify('sqrt(22)'),sympify('sqrt(26)'),
-           sympify('sqrt(30)'),sympify('sqrt(34)'),sympify('sqrt(38)'),
-           sympify('sqrt(42)'),sympify('sqrt(46)'),sympify('sqrt(2)'),
-           sympify('sqrt(6)'),sympify('sqrt(58)'),sympify('sqrt(62)'),
-           sympify('sqrt(66)'),sympify('sqrt(70)'),sympify('sqrt(74)'),
-           sympify('sqrt(78)'),sympify('sqrt(82)'),sympify('sqrt(86)')]
 
-for k in range(21):
-  f = factors[k]
-  l_k = simplify(phi_(sympify(k),x)/f).as_poly(x)
-  print('l(',k,', x): ',l_k.all_coeffs())
+# Compute and print the lobatto kernel functions without the sqrt prefactor
+for k in range(0,4):
+  K = sympify(k)
+  #f = 2/sqrt(2/(2*(K+2)-1))
+
+  l_k = simplify(phi_(K,x)/2).as_poly(x)
+  print('l(',k,', x): ',l_k)
+  # print('l(',k,', x): ',l_k.all_coeffs())
+
+
+# test the lobatto polynomials by evaluation
+for k in range(2,4):
+  K = sympify(k)
+  f = 2/sqrt(2/(2*(K+2)-1))
+  l_k = simplify(f*l_(K,x)/2).as_poly(x)
+
+  l_k_0 = N(l_k.subs(x,0.0))
+  l_k_1 = N(l_k.subs(x,0.25))
+  l_k_2 = N(l_k.subs(x,0.5))
+  l_k_3 = N(l_k.subs(x,0.75))
+  l_k_4 = N(l_k.subs(x,1.0))
+
+  print('l(',k,', x): ',[l_k_0,l_k_1,l_k_2,l_k_3,l_k_4])
