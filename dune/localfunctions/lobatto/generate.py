@@ -9,7 +9,8 @@ def L (k, x):
   elif k == 1:
     return x
   else:
-    return (2*k-1)/k * x * L(k-1,x) - (k-1)/k * L(k-2,x)
+    _k = sympify(k)
+    return (2*_k-1)/_k * x * L(k-1,x) - (_k-1)/_k * L(k-2,x)
 
 
 def l (k, x):
@@ -18,43 +19,46 @@ def l (k, x):
   elif k == 1:
     return (1+x)/2
   else:
-    return integrate(L(k-1,y),(y,-1,x))
+    _k = sympify(k)
+    return 1/sqrt(2/(2*_k-1)) * integrate(L(k-1,y),(y,-1,x))
 
 def phi (k, x):
-  return l(k+2,x) / l(0,x) / l(1,x)
+  return l(k+2,x) / ((1-x)/2 * (1+x)/2)
 
-
-# transform coordinates in [0,1] to [-1,1]
-def x_ (x):
-  return 2*x-1
 
 def l_ (k, x):
-  return l(k,x_(x))
+  return l(k,2*x-1)
 
 def phi_ (k, x):
-  return l_(k+2,x).as_poly(x) / l_(0,x).as_poly(x) / l_(1,x).as_poly(x)
+  return phi(k, 2*x-1)
+
+def evaluate (expr):
+  return [N(expr.subs(x,0.0)), N(expr.subs(x,0.25)), N(expr.subs(x,0.5)),
+          N(expr.subs(x,0.75)), N(expr.subs(x,1.0))]
 
 
-# Compute and print the lobatto kernel functions without the sqrt prefactor
-for k in range(0,4):
-  K = sympify(k)
-  #f = 2/sqrt(2/(2*(K+2)-1))
+# Compute and print the Lobatto kernel functions without the sqrt prefactor
+for k in range(0,18):
+  _k = sympify(k)
+  f = 2/sqrt(2/(2*(_k+2)-1))
+  phi_k_x = simplify(phi_(k,x)/f)
+  print('phi(',k,', x): ',phi_k_x.as_poly(x).all_coeffs())
 
-  l_k = simplify(phi_(K,x)/2).as_poly(x)
-  print('l(',k,', x): ',l_k)
-  # print('l(',k,', x): ',l_k.all_coeffs())
+print("--------------------")
 
 
-# test the lobatto polynomials by evaluation
-for k in range(2,4):
-  K = sympify(k)
-  f = 2/sqrt(2/(2*(K+2)-1))
-  l_k = simplify(f*l_(K,x)/2).as_poly(x)
+# test the Lobatto polynomials by evaluation
+for k in range(2,7):
+  phi_k_x = simplify(phi_(k,x))
+  dphi_k_x = simplify(phi_(k,x).diff(x))
+  d2phi_k_x = simplify(phi_(k,x).diff(x,x))
+  print('phi(',k,', x): ',evaluate(phi_k_x))
+  print('dphi(',k,', x): ',evaluate(dphi_k_x))
+  print('d2phi(',k,', x): ',evaluate(d2phi_k_x))
 
-  l_k_0 = N(l_k.subs(x,0.0))
-  l_k_1 = N(l_k.subs(x,0.25))
-  l_k_2 = N(l_k.subs(x,0.5))
-  l_k_3 = N(l_k.subs(x,0.75))
-  l_k_4 = N(l_k.subs(x,1.0))
-
-  print('l(',k,', x): ',[l_k_0,l_k_1,l_k_2,l_k_3,l_k_4])
+  l_k_x = simplify(l_(k,x))
+  dl_k_x = simplify(l_(k,x).diff(x))
+  d2l_k_x = simplify(l_(k,x).diff(x,x))
+  print('l(',k,', x):   ',evaluate(l_k_x))
+  print('dl(',k,', x):   ',evaluate(dl_k_x))
+  print('d2l(',k,', x):   ',evaluate(d2l_k_x))
