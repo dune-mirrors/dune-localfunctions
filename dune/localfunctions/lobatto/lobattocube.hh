@@ -8,6 +8,7 @@
 #include <numeric>
 #include <vector>
 
+#include <dune/common/filledarray.hh>
 #include <dune/common/fmatrix.hh>
 #include <dune/common/fvector.hh>
 #include <dune/common/math.hh>
@@ -26,6 +27,175 @@ namespace Dune { namespace Impl
   template<class LocalBasis>
   class LobattoLocalInterpolation;
 
+  template<unsigned int dim>
+  class LobattoOrders;
+
+
+  template<>
+  class LobattoOrders<1>;
+  {
+  public:
+    std::array<unsigned int, 1> pb_;
+    unsigned int maxP_;
+    unsigned int size_;
+
+    // p = polynomial degree
+    LobattoOrders (unsigned int p)
+      : LobattoOrders(std::array{p})
+    {}
+
+    // pb = polynomial degree of element bubble functions
+    LobattoOrders (std::array<unsigned int, 1> const& pb)
+      : pb_{pb}
+    {
+      maxP_ = *std::max_element(pb_.begin(), pb_.end());
+      size_ = 2 + (pb_[0]-2);
+    }
+
+    unsigned int size () const
+    {
+      return size_;
+    }
+
+    unsigned int max () const
+    {
+      return maxP_;
+    }
+
+    unsigned int bubble (unsigned int k) const
+    {
+      return pb_[k];
+    }
+  };
+
+  template<>
+  class LobattoOrders<2>;
+  {
+  public:
+    std::array<unsigned int, 2> pb_;
+    std::array<unsigned int, 4> pe_;
+    unsigned int maxP_;
+    unsigned int size_;
+
+    // p = polynomial degree
+    LobattoOrders (unsigned int p)
+      : LobattoOrder(std::array{p,p}, std::array{p,p,p,p})
+    {}
+
+    // pb = polynomial degree of element bubble functions
+    // pe = polynomial degree of edge functions
+    LobattoLocalBasis (std::array<unsigned int, 2> const& pb,
+                       std::array<unsigned int, 4> const& pe)
+      : pb_{pb}
+      , pe_{pe}
+    {
+      using std::max;
+      using std::max_element;
+
+      maxP_ = *max_element(pb_.begin(), pb_.end());
+      maxP_ = max(maxP_, *max_element(pe_.begin(), pe_.end()));
+
+      unsigned int vertexDofs = 4;
+      unsigned int edgeDofs = 0u;
+      for (unsigned int p : pe_)
+        edgeDofs += max(0u,p-2);
+      unsigned int bubbleDofs = max(0u,pb_[0]-2) * max(0u,pb_[1]-2)
+
+      size_ = vertexDofs + edgeDofs + bubbleDofs;
+    }
+
+    unsigned int size () const
+    {
+      return size_;
+    }
+
+    unsigned int max () const
+    {
+      return maxP_;
+    }
+
+    unsigned int bubble (unsigned int k) const
+    {
+      return pb_[k];
+    }
+
+    unsigned int edge (unsigned int k) const
+    {
+      return pe_[k];
+    }
+  };
+
+  template<>
+  class LobattoOrders<3>;
+  {
+  public:
+    std::array<unsigned int, 3> pb_;
+    std::array<unsigned int, 12> pf_;
+    std::array<unsigned int, 12> pe_;
+    unsigned int maxP_;
+    unsigned int size_;
+
+    // p = polynomial degree
+    LobattoOrders (unsigned int p)
+      : LobattoOrders(std::array{p,p,p}, filledArray<12>(p), filledArray<12>(p))
+    {}
+
+    // pb = polynomial degree of element bubble functions
+    // pf = polynomial degree of face functions
+    // pe = polynomial degree of edge functions
+    LobattoLocalBasis (std::array<unsigned int, 3> const& pb,
+                       std::array<unsigned int, 12> const& pf,
+                       std::array<unsigned int, 12> const& pe)
+      : pb_{pb}
+      , pf_{pf}
+      , pe_{pe}
+    {
+      using std::max;
+      using std::max_element;
+
+      maxP_ = *max_element(pb_.begin(), pb_.end());
+      maxP_ = max(maxP_, *max_element(pf_.begin(), pf_.end()));
+      maxP_ = max(maxP_, *max_element(pe_.begin(), pe_.end()));
+
+      unsigned int vertexDofs = 8;
+      unsigned int edgeDofs = 0u;
+      for (unsigned int p : pe_)
+        edgeDofs += max(0u,p-2);
+      unsigned int faceDofs = 0u;
+      for (unsigned int i = 0; i < pf_.size(); i+=2)
+        faceDofs += max(0u, pf_[i]-2) * max(0u, pf_[i+1]-2);
+      unsigned int bubbleDofs = max(0u,pb_[0]-2) * max(0u,pb_[1]-2) * max(0u,pb_[2]-2);
+
+      size_ = vertexDofs + edgeDofs + faceDofs + bubbleDofs;
+    }
+
+    unsigned int size () const
+    {
+      return size_;
+    }
+
+    unsigned int max () const
+    {
+      return maxP_;
+    }
+
+    unsigned int bubble (unsigned int k) const
+    {
+      return pb_[k];
+    }
+
+    unsigned int face (unsigned int k) const
+    {
+      return pf_[k];
+    }
+
+    unsigned int edge (unsigned int k) const
+    {
+      return pe_[k];
+    }
+  };
+
+
    /** \brief Lobatto shape functions of arbitrary order on the reference line [0,1]
 
      \tparam D Type to represent the field in the domain
@@ -38,116 +208,22 @@ namespace Dune { namespace Impl
   {
     friend class LobattoLocalInterpolation<LobattoLocalBasis<D,R,dim,k> >;
 
-    // Return i as a d-digit number in the (k+1)-nary system
-    static std::array<unsigned int,dim> multiindex (unsigned int i)
-    {
-      std::array<unsigned int,dim> alpha;
-      for (unsigned int j=0; j<dim; j++)
-      {
-        alpha[j] = i % (k+1);
-        i = i/(k+1);
-      }
-      return alpha;
-    }
-
-    std::array<unsigned int, dim> pb_;
-    std::array<unsigned int, dim > 1 ? 2*dim*(dim-1) : 0> pf_;
-    std::array<unsigned int, dim > 2 ? 4*dim*(dim-2) : 0> pe_;
-    unsigned int maxP_;
-    unsigned int size_;
-
+    LobattoOrders<dim> orders_;
     Lobatto<R,D> lobatto_{};
 
   public:
     using Traits = LocalBasisTraits<D,dim,FieldVector<D,dim>,R,1,FieldVector<R,1>,FieldMatrix<R,1,dim> >;
 
     // p = polynomial degree
-    LobattoLocalBasis (unsigned int p)
-    {
-      std::fill(pb.begin(), pb.end(), p);
-      std::fill(pf.begin(), pf.end(), p);
-      std::fill(pe.begin(), pe.end(), p);
-      computeSize();
-    }
-
-    // 1d:
-    // pb = polynomial degree of cell functions
-    LobattoLocalBasis (std::array<unsigned int, 1> const& pb)
-      : pb_{pb}
-      , pf_{}
-      , pe_{}
-    {
-      static_assert(dim == 1);
-      computeSize();
-    }
-
-    // 2d:
-    // pb = polynomial degree of cell functions
-    // pf = polynomial degree of face functions
-    LobattoLocalBasis (std::array<unsigned int, 2> const& pb,
-                       std::array<unsigned int, 4> const& pf)
-      : pb_{pb}
-      , pf_{pf}
-      , pe_{}
-    {
-      static_assert(dim == 2);
-      computeSize();
-    }
-
-    // 3d:
-    // pb = polynomial degree of cell functions
-    // pf = polynomial degree of face functions
-    // pe = polynomial degree of edge functions
-    LobattoLocalBasis (std::array<unsigned int, 3> const& pb,
-                       std::array<unsigned int, 12> const& pf,
-                       std::array<unsigned int, 12> const& pe)
-      : pb_{pb}
-      , pf_{pf}
-      , pe_{pe}
-    {
-      static_assert(dim == 3);
-      computeSize();
-    }
-
-    void computeSize ()
-    {
-      using std::max;
-      using std::max_element;
-
-      maxP_ = *max_element(pb_.begin(), pb_.end());
-      maxP_ = max(maxP_, *max_element(pf_.begin(), pf_.end()));
-      maxP_ = max(maxP_, *max_element(pe_.begin(), pe_.end()));
-
-      if constexpr(dim == 1)
-        size_ = 2 + (pb_[0]-2);
-      else if constexpr(dim == 2) {
-        unsigned int vertexDofs = 4;
-        unsigned int edgeDofs = 0u;
-        for (unsigned int p : pf_)
-          edgeDofs += max(0u,p-2);
-        unsigned int bubbleDofs = max(0u,pb_[0]-2) * max(0u,pb_[1]-2)
-
-        size_ = vertexDofs + edgeDofs + bubbleDofs;
-      }
-      else if constexpr(dim == 3) {
-        unsigned int vertexDofs = 8;
-        unsigned int edgeDofs = 0u;
-        for (unsigned int p : pe_)
-          edgeDofs += max(0u,p-2);
-        unsigned int faceDofs = 0u;
-        for (unsigned int i = 0; i < pf_.size(); i+=2)
-          faceDofs += max(0u, pf_[i]-2) * max(0u, pf_[i+1]-2);
-        unsigned int bubbleDofs = max(0u,pb_[0]-2) * max(0u,pb_[1]-2) * max(0u,pb_[2]-2);
-
-        size_ = vertexDofs + edgeDofs + faceDofs + bubbleDofs;
-      }
-    }
+    LobattoLocalBasis (LobattoOrders<dim> orders)
+      : orders_(std::move(orders))
+    {}
 
     /** \brief Number of shape functions
      */
     unsigned int size () const
     {
-      return size_;
+      return orders_.size_;
     }
 
     //! \brief Evaluate all shape functions
@@ -157,8 +233,8 @@ namespace Dune { namespace Impl
       out.resize(size());
 
       std::vector<std::array<typename Traits::RangeFieldType, dim>> l;
-      l.resize(maxP_+1);
-      for (unsigned int k = 0; k <= maxP_; ++k)
+      l.resize(orders_.max()+1);
+      for (unsigned int k = 0; k <= orders_.max(); ++k)
         for (unsigned int d = 0; d < dim; ++d)
           l[k][d] = lobatto_(k,x[d]);
 
@@ -169,7 +245,7 @@ namespace Dune { namespace Impl
         out[1] = l[1][0];
 
         // interior bubble functions
-        for (unsigned int k = 2; k <= pb_[0]; ++k)
+        for (unsigned int k = 2; k <= orders_.bubble(0); ++k)
           out[k] = l[k][0];
       }
       else if constexpr(dim == 2) {
@@ -181,21 +257,21 @@ namespace Dune { namespace Impl
 
         // edge functions
         unsigned int i = 4;
-        for (unsigned int k = 2; k <= pf_[0]; ++k)
+        for (unsigned int k = 2; k <= orders_.edge(0); ++k)
           out[i++] = l[0][0] * l[k][1];
-        for (unsigned int k = 2; k <= pf_[1]; ++k)
+        for (unsigned int k = 2; k <= orders_.edge(1); ++k)
           out[i++] = l[1][0] * l[k][1];
-        for (unsigned int k = 2; k <= pf_[2]; ++k)
+        for (unsigned int k = 2; k <= orders_.edge(2); ++k)
           out[i++] = l[k][0] * l[0][1];
-        for (unsigned int k = 2; k <= pf_[3]; ++k)
+        for (unsigned int k = 2; k <= orders_.edge(3); ++k)
           out[i++] = l[k][0] * l[1][1];
 
         // interior bubble functions
-        for (unsigned int n1 = 2; n1 <= pb_[0]; ++n1)
-          for (unsigned int n2 = 2; n2 <= pb_[1]; ++n2)
+        for (unsigned int n1 = 2; n1 <= orders_.bubble(0); ++n1)
+          for (unsigned int n2 = 2; n2 <= orders_.bubble(1); ++n2)
             out[i++] = l[n1][0] * l[n2][1];
       }
-      else if (dim == 3) {
+      else if constexpr(dim == 3) {
         // vertex functions
         out[0] = l[0][0] * l[0][1] * l[0][2];
         out[1] = l[1][0] * l[0][1] * l[0][2];
@@ -208,55 +284,55 @@ namespace Dune { namespace Impl
 
         // edge functions
         unsigned int i = 8;
-        for (unsigned int k = 2; k <= pe_[0]; ++k)
+        for (unsigned int k = 2; k <= orders_.edge(0); ++k)
           out[i++] = l[0][0] * l[0][1] * l[k][2];
-        for (unsigned int k = 2; k <= pe_[1]; ++k)
+        for (unsigned int k = 2; k <= orders_.edge(1); ++k)
           out[i++] = l[1][0] * l[0][1] * l[k][2];
-        for (unsigned int k = 2; k <= pe_[2]; ++k)
+        for (unsigned int k = 2; k <= orders_.edge(2); ++k)
           out[i++] = l[0][0] * l[1][1] * l[k][2];
-        for (unsigned int k = 2; k <= pe_[3]; ++k)
+        for (unsigned int k = 2; k <= orders_.edge(3); ++k)
           out[i++] = l[1][0] * l[1][1] * l[k][2];
-        for (unsigned int k = 2; k <= pe_[4]; ++k)
+        for (unsigned int k = 2; k <= orders_.edge(4); ++k)
           out[i++] = l[0][0] * l[k][1] * l[0][2];
-        for (unsigned int k = 2; k <= pe_[5]; ++k)
+        for (unsigned int k = 2; k <= orders_.edge(5); ++k)
           out[i++] = l[1][0] * l[k][1] * l[0][2];
-        for (unsigned int k = 2; k <= pe_[6]; ++k)
+        for (unsigned int k = 2; k <= orders_.edge(6); ++k)
           out[i++] = l[k][0] * l[0][1] * l[0][2];
-        for (unsigned int k = 2; k <= pe_[7]; ++k)
+        for (unsigned int k = 2; k <= orders_.edge(7); ++k)
           out[i++] = l[k][0] * l[1][1] * l[0][2];
-        for (unsigned int k = 2; k <= pe_[8]; ++k)
+        for (unsigned int k = 2; k <= orders_.edge(8); ++k)
           out[i++] = l[0][0] * l[k][1] * l[1][2];
-        for (unsigned int k = 2; k <= pe_[9]; ++k)
+        for (unsigned int k = 2; k <= orders_.edge(9); ++k)
           out[i++] = l[1][0] * l[k][1] * l[1][2];
-        for (unsigned int k = 2; k <= pe_[10]; ++k)
+        for (unsigned int k = 2; k <= orders_.edge(10); ++k)
           out[i++] = l[k][0] * l[0][1] * l[1][2];
-        for (unsigned int k = 2; k <= pe_[11]; ++k)
+        for (unsigned int k = 2; k <= orders_.edge(11); ++k)
           out[i++] = l[k][0] * l[1][1] * l[1][2];
 
         // face functions
-        for (unsigned int n1 = 2; n1 <= pf_[0]; ++n1)
-          for (unsigned int n2 = 2; n2 <= pf_[1]; ++n2)
+        for (unsigned int n1 = 2; n1 <= orders_.face(0); ++n1)
+          for (unsigned int n2 = 2; n2 <= orders_.face(1); ++n2)
             out[i++] = l[0][0] * l[n1][1] * l[n2][2];
-        for (unsigned int n1 = 2; n1 <= pf_[2]; ++n1)
-          for (unsigned int n2 = 2; n2 <= pf_[3]; ++n2)
+        for (unsigned int n1 = 2; n1 <= orders_.face(2); ++n1)
+          for (unsigned int n2 = 2; n2 <= orders_.face(3); ++n2)
             out[i++] = l[1][0] * l[n1][1] * l[n2][2];
-        for (unsigned int n1 = 2; n1 <= pf_[4]; ++n1)
-          for (unsigned int n2 = 2; n2 <= pf_[5]; ++n2)
+        for (unsigned int n1 = 2; n1 <= orders_.face(4); ++n1)
+          for (unsigned int n2 = 2; n2 <= orders_.face(5); ++n2)
             out[i++] = l[n1][0] * l[0][1] * l[n2][2];
-        for (unsigned int n1 = 2; n1 <= pf_[6]; ++n1)
-          for (unsigned int n2 = 2; n2 <= pf_[7]; ++n2)
+        for (unsigned int n1 = 2; n1 <= orders_.face(6); ++n1)
+          for (unsigned int n2 = 2; n2 <= orders_.face(7); ++n2)
             out[i++] = l[n1][0] * l[1][1] * l[n2][2];
-        for (unsigned int n1 = 2; n1 <= pf_[8]; ++n1)
-          for (unsigned int n2 = 2; n2 <= pf_[9]; ++n2)
+        for (unsigned int n1 = 2; n1 <= orders_.face(8); ++n1)
+          for (unsigned int n2 = 2; n2 <= orders_.face(9); ++n2)
             out[i++] = l[n1][0] * l[n2][1] * l[0][2];
-        for (unsigned int n1 = 2; n1 <= pf_[10]; ++n1)
-          for (unsigned int n2 = 2; n2 <= pf_[11]; ++n2)
+        for (unsigned int n1 = 2; n1 <= orders_.face(10); ++n1)
+          for (unsigned int n2 = 2; n2 <= orders_.face(11); ++n2)
             out[i++] = l[n1][0] * l[n2][1] * l[1][2];
 
         // interior bubble functions
-        for (unsigned int n1 = 2; n1 <= pb_[0]; ++n1)
-          for (unsigned int n2 = 2; n2 <= pb_[1]; ++n2)
-            for (unsigned int n3 = 2; n3 <= pb_[2]; ++n3)
+        for (unsigned int n1 = 2; n1 <= orders_.bubble(0); ++n1)
+          for (unsigned int n2 = 2; n2 <= orders_.bubble(1); ++n2)
+            for (unsigned int n3 = 2; n3 <= orders_.bubble(2); ++n3)
               out[i++] = l[n1][0] * l[n2][1] * l[n3][2];
       }
     }
@@ -272,9 +348,9 @@ namespace Dune { namespace Impl
       out.resize(size());
 
       std::vector<std::array<typename Traits::RangeFieldType, dim>> l,dl;
-      l.resize(maxP_+1);
-      dl.resize(maxP_+1);
-      for (unsigned int k = 0; k <= maxP_; ++k) {
+      l.resize(orders_.max()+1);
+      dl.resize(orders_.max()+1);
+      for (unsigned int k = 0; k <= orders_.max(); ++k) {
         for (unsigned int d = 0; d < dim; ++d) {
           l[k][d] = lobatto_(k,x[d]);
           dl[k][d] = lobatto_.d(k,x[d]);
@@ -287,7 +363,7 @@ namespace Dune { namespace Impl
         out[1][0] = dl[1][0];
 
         // interior bubble functions
-        for (unsigned int k = 2; k <= pb_[0]; ++k)
+        for (unsigned int k = 2; k <= orders_.bubble(0); ++k)
           out[k][0] = dl[k][0];
       }
       else if constexpr(dim == 2) {
@@ -303,32 +379,32 @@ namespace Dune { namespace Impl
 
         // edge functions
         unsigned int i = 4;
-        for (unsigned int k = 2; k <= pf_[0]; ++k,++i) {
+        for (unsigned int k = 2; k <= orders_.edge(0); ++k,++i) {
           out[i][0] = dl[0][0] * l[k][1];
           out[i][1] = l[0][0] * dl[k][1];
         }
-        for (unsigned int k = 2; k <= pf_[1]; ++k,++i) {
+        for (unsigned int k = 2; k <= orders_.edge(1); ++k,++i) {
           out[i][0] = dl[1][0] * l[k][1];
           out[i][0] = l[1][0] * dl[k][1];
         }
-        for (unsigned int k = 2; k <= pf_[2]; ++k,++i) {
+        for (unsigned int k = 2; k <= orders_.edge(2); ++k,++i) {
           out[i][0] = dl[k][0] * l[0][1];
           out[i][1] = l[k][0] * dl[0][1];
         }
-        for (unsigned int k = 2; k <= pf_[3]; ++k,++i) {
+        for (unsigned int k = 2; k <= orders_.edge(3); ++k,++i) {
           out[i][0] = dl[k][0] * l[1][1];
           out[i][1] = l[k][0] * dl[1][1];
         }
 
         // interior bubble functions
-        for (unsigned int n1 = 2; n1 <= pb_[0]; ++n1) {
-          for (unsigned int n2 = 2; n2 <= pb_[1]; ++n2,++i) {
+        for (unsigned int n1 = 2; n1 <= orders_.bubble(0); ++n1) {
+          for (unsigned int n2 = 2; n2 <= orders_.bubble(1); ++n2,++i) {
             out[i][0] = dl[n1][0] * l[n2][1];
             out[i][1] = l[n1][0] * dl[n2][1];
           }
         }
       }
-      else if (dim == 3) {
+      else if constexpr(dim == 3) {
         // vertex functions
         out[0][0] = dl[0][0] * l[0][1] * l[0][2];
         out[0][1] = l[0][0] * dl[0][1] * l[0][2];
@@ -357,105 +433,105 @@ namespace Dune { namespace Impl
 
         // edge functions
         unsigned int i = 8;
-        for (unsigned int k = 2; k <= pe_[0]; ++k, ++i) {
+        for (unsigned int k = 2; k <= orders_.edge(0); ++k, ++i) {
           out[i][0] = dl[0][0] * l[0][1] * l[k][2];
           out[i][1] = l[0][0] * dl[0][1] * l[k][2];
           out[i][2] = l[0][0] * l[0][1] * dl[k][2];
         }
-        for (unsigned int k = 2; k <= pe_[1]; ++k, ++i) {
+        for (unsigned int k = 2; k <= orders_.edge(1); ++k, ++i) {
           out[i][0] = dl[1][0] * l[0][1] * l[k][2];
           out[i][1] = l[1][0] * dl[0][1] * l[k][2];
           out[i][2] = l[1][0] * l[0][1] * dl[k][2];
         }
-        for (unsigned int k = 2; k <= pe_[2]; ++k, ++i) {
+        for (unsigned int k = 2; k <= orders_.edge(2); ++k, ++i) {
           out[i][0] = dl[0][0] * l[1][1] * l[k][2];
           out[i][1] = l[0][0] * dl[1][1] * l[k][2];
           out[i][2] = l[0][0] * l[1][1] * dl[k][2];
         }
-        for (unsigned int k = 2; k <= pe_[3]; ++k, ++i) {
+        for (unsigned int k = 2; k <= orders_.edge(3); ++k, ++i) {
           out[i][0] = dl[1][0] * l[1][1] * l[k][2];
           out[i][1] = l[1][0] * dl[1][1] * l[k][2];
           out[i][2] = l[1][0] * l[1][1] * dl[k][2];
         }
-        for (unsigned int k = 2; k <= pe_[4]; ++k, ++i) {
+        for (unsigned int k = 2; k <= orders_.edge(4); ++k, ++i) {
           out[i][0] = dl[0][0] * l[k][1] * l[0][2];
           out[i][1] = l[0][0] * dl[k][1] * l[0][2];
           out[i][2] = l[0][0] * l[k][1] * dl[0][2];
         }
-        for (unsigned int k = 2; k <= pe_[5]; ++k, ++i) {
+        for (unsigned int k = 2; k <= orders_.edge(5); ++k, ++i) {
           out[i][0] = dl[1][0] * l[k][1] * l[0][2];
           out[i][1] = l[1][0] * dl[k][1] * l[0][2];
           out[i][2] = l[1][0] * l[k][1] * dl[0][2];
         }
-        for (unsigned int k = 2; k <= pe_[6]; ++k, ++i) {
+        for (unsigned int k = 2; k <= orders_.edge(6); ++k, ++i) {
           out[i][0] = dl[k][0] * l[0][1] * l[0][2];
           out[i][1] = l[k][0] * dl[0][1] * l[0][2];
           out[i][2] = l[k][0] * l[0][1] * dl[0][2];
         }
-        for (unsigned int k = 2; k <= pe_[7]; ++k, ++i) {
+        for (unsigned int k = 2; k <= orders_.edge(7); ++k, ++i) {
           out[i][0] = dl[k][0] * l[1][1] * l[0][2];
           out[i][1] = l[k][0] * dl[1][1] * l[0][2];
           out[i][2] = l[k][0] * l[1][1] * dl[0][2];
         }
-        for (unsigned int k = 2; k <= pe_[8]; ++k, ++i) {
+        for (unsigned int k = 2; k <= orders_.edge(8); ++k, ++i) {
           out[i][0] = dl[0][0] * l[k][1] * l[1][2];
           out[i][1] = l[0][0] * dl[k][1] * l[1][2];
           out[i][2] = l[0][0] * l[k][1] * dl[1][2];
         }
-        for (unsigned int k = 2; k <= pe_[9]; ++k, ++i) {
+        for (unsigned int k = 2; k <= orders_.edge(9); ++k, ++i) {
           out[i][0] = dl[1][0] * l[k][1] * l[1][2];
           out[i][1] = l[1][0] * dl[k][1] * l[1][2];
           out[i][2] = l[1][0] * l[k][1] * dl[1][2];
         }
-        for (unsigned int k = 2; k <= pe_[10]; ++k, ++i) {
+        for (unsigned int k = 2; k <= orders_.edge(10); ++k, ++i) {
           out[i][0] = dl[k][0] * l[0][1] * l[1][2];
           out[i][1] = l[k][0] * dl[0][1] * l[1][2];
           out[i][2] = l[k][0] * l[0][1] * dl[1][2];
         }
-        for (unsigned int k = 2; k <= pe_[11]; ++k, ++i) {
+        for (unsigned int k = 2; k <= orders_.edge(11); ++k, ++i) {
           out[i][0] = dl[k][0] * l[1][1] * l[1][2];
           out[i][1] = l[k][0] * dl[1][1] * l[1][2];
           out[i][2] = l[k][0] * l[1][1] * dl[1][2];
         }
 
         // face functions
-        for (unsigned int n1 = 2; n1 <= pf_[0]; ++n1) {
-          for (unsigned int n2 = 2; n2 <= pf_[1]; ++n2, ++i) {
+        for (unsigned int n1 = 2; n1 <= orders_.face(0); ++n1) {
+          for (unsigned int n2 = 2; n2 <= orders_.face(1); ++n2, ++i) {
             out[i][0] = dl[0][0] * l[n1][1] * l[n2][2];
             out[i][1] = l[0][0] * dl[n1][1] * l[n2][2];
             out[i][2] = l[0][0] * l[n1][1] * dl[n2][2];
           }
         }
-        for (unsigned int n1 = 2; n1 <= pf_[2]; ++n1) {
-          for (unsigned int n2 = 2; n2 <= pf_[3]; ++n2, ++i) {
+        for (unsigned int n1 = 2; n1 <= orders_.face(2); ++n1) {
+          for (unsigned int n2 = 2; n2 <= orders_.face(3); ++n2, ++i) {
             out[i][0] = dl[1][0] * l[n1][1] * l[n2][2];
             out[i][1] = l[1][0] * dl[n1][1] * l[n2][2];
             out[i][2] = l[1][0] * l[n1][1] * dl[n2][2];
           }
         }
-        for (unsigned int n1 = 2; n1 <= pf_[4]; ++n1) {
-          for (unsigned int n2 = 2; n2 <= pf_[5]; ++n2, ++i) {
+        for (unsigned int n1 = 2; n1 <= orders_.face(4); ++n1) {
+          for (unsigned int n2 = 2; n2 <= orders_.face(5); ++n2, ++i) {
             out[i][0] = dl[n1][0] * l[0][1] * l[n2][2];
             out[i][1] = l[n1][0] * dl[0][1] * l[n2][2];
             out[i][2] = l[n1][0] * l[0][1] * dl[n2][2];
           }
         }
-        for (unsigned int n1 = 2; n1 <= pf_[6]; ++n1) {
-          for (unsigned int n2 = 2; n2 <= pf_[7]; ++n2, ++i) {
+        for (unsigned int n1 = 2; n1 <= orders_.face(6); ++n1) {
+          for (unsigned int n2 = 2; n2 <= orders_.face(7); ++n2, ++i) {
             out[i][0] = dl[n1][0] * l[1][1] * l[n2][2];
             out[i][1] = l[n1][0] * dl[1][1] * l[n2][2];
             out[i][2] = l[n1][0] * l[1][1] * dl[n2][2];
           }
         }
-        for (unsigned int n1 = 2; n1 <= pf_[8]; ++n1) {
-          for (unsigned int n2 = 2; n2 <= pf_[9]; ++n2, ++i) {
+        for (unsigned int n1 = 2; n1 <= orders_.face(8); ++n1) {
+          for (unsigned int n2 = 2; n2 <= orders_.face(9); ++n2, ++i) {
             out[i][0] = dl[n1][0] * l[n2][1] * l[0][2];
             out[i][1] = l[n1][0] * dl[n2][1] * l[0][2];
             out[i][2] = l[n1][0] * l[n2][1] * dl[0][2];
           }
         }
-        for (unsigned int n1 = 2; n1 <= pf_[10]; ++n1) {
-          for (unsigned int n2 = 2; n2 <= pf_[11]; ++n2, ++i) {
+        for (unsigned int n1 = 2; n1 <= orders_.face(10); ++n1) {
+          for (unsigned int n2 = 2; n2 <= orders_.face(11); ++n2, ++i) {
             out[i][0] = dl[n1][0] * l[n2][1] * l[1][2];
             out[i][1] = l[n1][0] * dl[n2][1] * l[1][2];
             out[i][2] = l[n1][0] * l[n2][1] * dl[1][2];
@@ -463,9 +539,9 @@ namespace Dune { namespace Impl
         }
 
         // interior bubble functions
-        for (unsigned int n1 = 2; n1 <= pb_[0]; ++n1) {
-          for (unsigned int n2 = 2; n2 <= pb_[1]; ++n2) {
-            for (unsigned int n3 = 2; n3 <= pb_[2]; ++n3, ++i) {
+        for (unsigned int n1 = 2; n1 <= orders_.bubble(0); ++n1) {
+          for (unsigned int n2 = 2; n2 <= orders_.bubble(1); ++n2) {
+            for (unsigned int n3 = 2; n3 <= orders_.bubble(2); ++n3, ++i) {
               out[i][0] = dl[n1][0] * l[n2][1] * l[n3][2];
               out[i][1] = l[n1][0] * dl[n2][1] * l[n3][2];
               out[i][2] = l[n1][0] * l[n2][1] * dl[n3][2];
@@ -491,285 +567,87 @@ namespace Dune { namespace Impl
     //! \brief Polynomial order of the shape functions
     unsigned int order () const
     {
-      return maxP_;
+      return orders_.max();
     }
   };
 
   /** \brief Associations of the Lagrange degrees of freedom to subentities of the reference cube
    *
    * \tparam dim Dimension of the reference cube
-   * \tparam k Polynomial order of the Lagrange space in one direction
    */
-  template<unsigned int dim, unsigned int k>
+  template<unsigned int dim>
   class LobattoLocalCoefficients
   {
-    // Return i as a d-digit number in the (k+1)-nary system
-    static std::array<unsigned int,dim> multiindex (unsigned int i)
-    {
-      std::array<unsigned int,dim> alpha;
-      for (unsigned int j=0; j<dim; j++)
-      {
-        alpha[j] = i % (k+1);
-        i = i/(k+1);
-      }
-      return alpha;
-    }
-
-    /** \brief Set the 'subentity' field for each dof for a 1d element */
-    void setup1d(std::vector<unsigned int>& subEntity)
-    {
-      assert(k>0);
-
-      unsigned lastIndex=0;
-
-      /* edge and vertex numbering
-         0----0----1
-       */
-
-      // edge (0)
-      subEntity[lastIndex++] = 0;                 // corner 0
-      for (unsigned i = 0; i < k - 1; ++i)
-        subEntity[lastIndex++] = 0;               // inner dofs of element (0)
-
-      subEntity[lastIndex++] = 1;                 // corner 1
-
-      assert(power(k+1,dim)==lastIndex);
-    }
-
-    void setup2d(std::vector<unsigned int>& subEntity)
-    {
-      assert(k>0);
-
-      unsigned lastIndex=0;
-
-      // LocalKey: entity number, entity codim, dof indices within each entity
-      /* edge and vertex numbering
-       2----3----3
-       |         |
-       |         |
-       0         1
-       |         |
-       |         |
-       0----2----1
-       */
-
-      // lower edge (2)
-      subEntity[lastIndex++] = 0;                 // corner 0
-      for (unsigned i = 0; i < k - 1; ++i)
-        subEntity[lastIndex++] = 2;           // inner dofs of lower edge (2)
-
-      subEntity[lastIndex++] = 1;                 // corner 1
-
-      // iterate from bottom to top over inner edge dofs
-      for (unsigned e = 0; e < k - 1; ++e) {
-        subEntity[lastIndex++] = 0;                   // left edge (0)
-        for (unsigned i = 0; i < k - 1; ++i)
-          subEntity[lastIndex++] = 0;                     // face dofs
-        subEntity[lastIndex++] = 1;                   // right edge (1)
-      }
-
-      // upper edge (3)
-      subEntity[lastIndex++] = 2;                 // corner 2
-      for (unsigned i = 0; i < k - 1; ++i)
-        subEntity[lastIndex++] = 3;                   // inner dofs of upper edge (3)
-
-      subEntity[lastIndex++] = 3;                 // corner 3
-
-      assert(power(k+1,dim)==lastIndex);
-    }
-
-    void setup3d(std::vector<unsigned int>& subEntity)
-    {
-      assert(k>0);
-
-      unsigned lastIndex=0;
-#ifndef NDEBUG
-      const unsigned numIndices = power(k+1,dim);
-      const unsigned numFaceIndices = power(k+1,dim-1);
-#endif
-      const unsigned numInnerEdgeDofs = k-1;
-
-      // LocalKey: entity number, entity codim, dof indices within each entity
-      /* edge and vertex numbering
-
-              6---(11)--7              6---------7
-             /|        /|             /|  (5)   /|
-           (8)|      (9)|            / | top   / |
-           / (2)     / (3)          /  |(3)bac/k |
-          4---(10)--5   |          4---------5   |
-          |   |     |   |      left|(0)|     |(1)|right
-          |   2--(7)|---3          |   2-----|---3
-         (0) /     (1) /           |(2)front |  /
-          |(4)      |(5)           | /  (4)  | /
-          |/        |/             |/ bottom |/
-          0---(6)---1              0---------1
-       */
-
-      // bottom face (4)
-      lastIndex=0;
-      // lower edge (6)
-      subEntity[lastIndex++] = 0;              // corner 0
-      for (unsigned i = 0; i < numInnerEdgeDofs; ++i)
-        subEntity[lastIndex++] = 6;                // inner dofs of lower edge (6)
-
-      subEntity[lastIndex++] = 1;              // corner 1
-
-      // iterate from bottom to top over inner edge dofs
-      for (unsigned e = 0; e < numInnerEdgeDofs; ++e) {
-        subEntity[lastIndex++] = 4;                // left edge (4)
-        for (unsigned i = 0; i < numInnerEdgeDofs; ++i)
-          subEntity[lastIndex++] = 4;                       // inner face dofs
-        subEntity[lastIndex++] = 5;                 // right edge (5)
-      }
-
-      // upper edge (7)
-      subEntity[lastIndex++] = 2;              // corner 2
-      for (unsigned i = 0; i < k - 1; ++i)
-        subEntity[lastIndex++] = 7;                // inner dofs of upper edge (7)
-      subEntity[lastIndex++] = 3;                // corner 3
-
-      assert(numFaceIndices==lastIndex);       // added 1 face so far
-      /////////////////////////////////////////// end bottom face (4)
-
-      ///////////////////// inner faces
-      for(unsigned f = 0; f < numInnerEdgeDofs; ++f) {
-
-        // lower edge (connecting  edges 0 and 1)
-        subEntity[lastIndex++] = 0;                // dof on edge 0
-        for (unsigned i = 0; i < numInnerEdgeDofs; ++i)
-          subEntity[lastIndex++] = 2;                            // dof in front face
-        subEntity[lastIndex++] = 1;                // dof on edge 1
-
-        // iterate from bottom to top over inner edge dofs
-        for (unsigned e = 0; e < numInnerEdgeDofs; ++e) {
-          subEntity[lastIndex++] = 0;                  // on left face (0)
-          for (unsigned i = 0; i < numInnerEdgeDofs; ++i)
-            subEntity[lastIndex++] = 0;                    // volume dofs
-          subEntity[lastIndex++] = 1;                  // right face (1)
-        }
-
-        // upper edge (connecting  edges 0 and 1)
-        subEntity[lastIndex++] = 2;                // dof on edge 2
-        for (unsigned i = 0; i < numInnerEdgeDofs; ++i)
-          subEntity[lastIndex++] = 3;                  // dof on rear face (3)
-        subEntity[lastIndex++] = 3;                // dof on edge 3
-
-        assert(lastIndex==(f+1+1)*numFaceIndices);
-      }
-
-      ////////////////////////////////////////// top face (5)
-      // lower edge (10)
-      subEntity[lastIndex++] = 4;              // corner 4
-      for (unsigned i = 0; i < k - 1; ++i)
-        subEntity[lastIndex++] = 10;                // inner dofs on lower edge (10)
-      subEntity[lastIndex++] = 5;              // corner 5
-
-      // iterate from bottom to top over inner edge dofs
-      for (unsigned e = 0; e < k - 1; ++e) {
-        subEntity[lastIndex++] = 8;                // left edge (8)
-        for (unsigned i = 0; i < k - 1; ++i)
-          subEntity[lastIndex++] = 5;                  // face dofs
-        subEntity[lastIndex++] = 9;                // right edge (9)
-      }
-
-      // upper edge (11)
-      subEntity[lastIndex++] = 6;              // corner 6
-      for (unsigned i = 0; i < k - 1; ++i)
-        subEntity[lastIndex++] = 11;                // inner dofs of upper edge (11)
-      subEntity[lastIndex++] = 7;              // corner 7
-
-      assert(numIndices==lastIndex);
-    }
+    LobattoOrders<dim> orders_;
+    std::vector<LocalKey> localKeys_;
 
   public:
     //! \brief Default constructor
-    LobattoLocalCoefficients ()
-    : localKeys_(size())
+    LobattoLocalCoefficients (LobattoOrders<dim> orders)
+      : orders_(std::move(orders))
+      , localKeys_(orders_.size())
     {
-      if (k==0)
-      {
-        localKeys_[0] = LocalKey(0,0,0);
-        return;
-      }
+      if constexpr(dim == 1) {
+        // vertex functions
+        localKeys_[0] = LocalKey(0,dim,0);
+        localKeys_[1] = LocalKey(1,dim,0);
 
-      if (k==1)
-      {
-        for (std::size_t i=0; i<size(); i++)
+        // interior bubble functions
+        for (unsigned int k = 2; k <= orders_.bubble(0); ++k)
+          localKeys_[k] = LocalKey(0,0,k-2);
+      }
+      else if constexpr(dim == 2) {
+        // vertex functions
+        for (unsigned int i = 0; i < 4; ++i)
           localKeys_[i] = LocalKey(i,dim,0);
-        return;
+
+        // edge functions
+        unsigned int i = 4;
+        for (unsigned int s = 0; s < 4; ++s)
+          for (unsigned int k = 2; k <= orders_.edge(s); ++k)
+            localKeys_[i++] = LocalKey(s,dim-1,k-2);
+
+        // interior bubble functions
+        for (unsigned int n1 = 2, j = 0; n1 <= orders_.bubble(0); ++n1)
+          for (unsigned int n2 = 2; n2 <= orders_.bubble(1); ++n2)
+            localKeys_[i++] = LocalKey(0,0,j++);
       }
+      else if constexpr(dim == 3) {
+        // vertex functions
+        for (unsigned int i = 0; i < 8; ++i)
+          localKeys_[i] = LocalKey(i,dim,0);
 
-      // Now: the general case
+        // edge functions
+        unsigned int i = 8;
+        for (unsigned int s = 0; s < 12; ++s)
+          for (unsigned int k = 2; k <= orders_.edge(s); ++k)
+            localKeys_[i++] = LocalKey(s,dim-1,k-2);
 
-      // Set up array of codimension-per-dof-number
-      std::vector<unsigned int> codim(size());
+        // face functions
+        for (unsigned int s = 0; s < 6; ++s)
+          for (unsigned int n1 = 2, j = 0; n1 <= orders_.face(2*s+0); ++n1)
+            for (unsigned int n2 = 2; n2 <= orders_.face(2*s+1); ++n2)
+              localKeys_[i++] = LocalKey(s,dim-1,j++);
 
-      for (std::size_t i=0; i<codim.size(); i++)
-      {
-        codim[i] = 0;
-
-        // Codimension gets increased by 1 for each coordinate direction
-        // where dof is on boundary
-        std::array<unsigned int,dim> mIdx = multiindex(i);
-        for (unsigned int j=0; j<dim; j++)
-          if (mIdx[j]==0 or mIdx[j]==k)
-            codim[i]++;
+        // interior bubble functions
+        for (unsigned int n1 = 2, j = 0; n1 <= orders_.bubble(0); ++n1)
+          for (unsigned int n2 = 2; n2 <= orders_.bubble(1); ++n2)
+            for (unsigned int n3 = 2; n3 <= orders_.bubble(2); ++n3)
+              localKeys_[i++] = LocalKey(0,0,j++);
       }
-
-      // Set up index vector (the index of the dof in the set of dofs of a given subentity)
-      // Algorithm: the 'index' has the same ordering as the dof number 'i'.
-      // To make it consecutive we interpret 'i' in the (k+1)-adic system, omit all digits
-      // that correspond to axes where the dof is on the element boundary, and transform the
-      // rest to the (k-1)-adic system.
-      std::vector<unsigned int> index(size());
-
-      for (std::size_t i=0; i<size(); i++)
-      {
-        index[i] = 0;
-
-        std::array<unsigned int,dim> mIdx = multiindex(i);
-
-        for (int j=dim-1; j>=0; j--)
-          if (mIdx[j]>0 && mIdx[j]<k)
-            index[i] = (k-1)*index[i] + (mIdx[j]-1);
-      }
-
-      // Set up entity and dof numbers for each (supported) dimension separately
-      std::vector<unsigned int> subEntity(size());
-
-      if (dim==1) {
-
-        setup1d(subEntity);
-
-      } else if (dim==2) {
-
-        setup2d(subEntity);
-
-      } else if (dim==3) {
-
-        setup3d(subEntity);
-
-      } else
-        DUNE_THROW(Dune::NotImplemented, "LobattoLocalCoefficients for order " << k << " and dim == " << dim);
-
-      for (size_t i=0; i<size(); i++)
-        localKeys_[i] = LocalKey(subEntity[i], codim[i], index[i]);
     }
 
     //! number of coefficients
-    static constexpr std::size_t size ()
+    unsigned int size () const
     {
-      return power(k+1,dim);
+      return orders_.size();
     }
 
-    //! get i-th index
-    const LocalKey& localKey (std::size_t i) const
+    //! get i-th LocalKey
+    const LocalKey& localKey (unsigned int i) const
     {
       return localKeys_[i];
     }
-
-  private:
-    std::vector<LocalKey> localKeys_;
   };
 
   /** \brief Evaluate the degrees of freedom of a Lagrange basis
@@ -779,7 +657,12 @@ namespace Dune { namespace Impl
   template<class LocalBasis>
   class LobattoLocalInterpolation
   {
+    LocalBasis localBasis_;
+
   public:
+    LobattoLocalInterpolation (LocalBasis const& localBasis)
+      : localBasis_(localBasis)
+    {}
 
     /** \brief Evaluate a given function at the Lagrange nodes
      *
@@ -789,82 +672,110 @@ namespace Dune { namespace Impl
      * \param[out] out Array of function values
      */
     template<typename F, typename C>
-    void interpolate (const F& ff, std::vector<C>& out) const
+    void interpolate (const F& f, std::vector<C>& out) const
     {
-      constexpr auto dim = LocalBasis::Traits::dimDomain;
-      constexpr auto k = LocalBasis::order();
+      out.resize(localBasis_.size());
+
+      const unsigned int dim = LocalBasis::Traits::dimDomain;
       using D = typename LocalBasis::Traits::DomainFieldType;
+      using Domain = typename LocalBasis::Traits::DomainType;
+      using R = typename LocalBasis::Traits::RangeFieldType;
+      using JacobianType = typename LocalBasis::Traits:JacobianType;
+      using GradientType = Dune::FieldVector<R,dim>;
 
-      typename LocalBasis::Traits::DomainType x;
-      auto&& f = Impl::makeFunctionWithCallOperator<typename LocalBasis::Traits::DomainType>(ff);
+      auto refElem = referenceElement<D,dim>(GeometryTypes::cube(dim));
 
-      out.resize(LocalBasis::size());
+      // vertex functions
+      unsigned int idx = 0;
+      for (; idx < refElem.size(dim); ++idx)
+        out[idx] = f(refElem.position(i,dim));
 
-      // Specialization for zero-order case
-      if (k==0)
-      {
-        auto center = ReferenceElements<D,dim>::cube().position(0,0);
-        out[0] = f(center);
-        return;
-      }
+      auto df = derivative(f);
+      std::vector<JacobianType> shapeGradients;
+      LocalOrders<dim> const& orders = localBasis.orders_;
 
-      // Specialization for first-order case
-      if (k==1)
-      {
-        for (unsigned int i=0; i<LocalBasis::size(); i++)
-        {
-          // Generate coordinate of the i-th corner of the reference cube
-          for (int j=0; j<dim; j++)
-            x[j] = (i & (1<<j)) ? 1.0 : 0.0;
-
-          out[i] = f(x);
+      if constexpr(dim > 1) {
+        // 1. make the edge projction for (f - fh_v)
+        for (unsigned int i = 0; i < refElem.size(dim-1); ++i) {
+          if (orders.edge(i) > 1)
+            DUNE_THROW(NotImplemented, "Interpolation of edges is not yet implemented!");
         }
-        return;
       }
 
-      // The general case
-      for (unsigned int i=0; i<LocalBasis::size(); i++)
+      if constexpr(dim > 2) {
+        // 2. make the face projection for (f - fh_v - sum_j fh_ej)
+        for (unsigned int i = 0; i < refElem.size(dim-2); ++i) {
+          if (orders.face(i) > 1)
+            DUNE_THROW(NotImplemented, "Interpolation of faces is not yet implemented!");
+        }
+      }
+
+      // construct a bubble interpolant by minimization of a local H1 seminorm
+      const unsigned int sb =
+        (dim == 1) ?  orders.bubble(0)-1 :
+        (dim == 2) ? (orders.bubble(0)-1)*(orders.bubble(1)-1) :
+                     (orders.bubble(0)-1)*(orders.bubble(1)-1)*(orders.bubble(2)-1);
+
+      DynamicMatrix<R> A(sb,sb, 0.0);
+      DynamicVector<R> b(sb, 0.0);
+      for (auto const& qp : Quadraturerules<D,dim>::rule(refElem.type(), orders.max()))
       {
-        // convert index i to multiindex
-        std::array<unsigned int,dim> alpha(LocalBasis::multiindex(i));
+        localBasis_.evaluateJacobians(qp.position(), shapeGradients);
+        GradientType dfAtQP = df(qp.position());
 
-        // Generate coordinate of the i-th Lagrange point
-        for (unsigned int j=0; j<dim; j++)
-          x[j] = (1.0*alpha[j])/k;
+        // sum up over all computed coefficients
+        GradientType duAtQP = 0;
+        for (unsigned int k = 0; k < idx; ++k)
+          duAtQP.axpy(out[k], shapeGradients[k]);
 
-        out[i] = f(x);
+        // assemble projection system on reference element
+        for (unsigned int d1 = 0, l1 = 0; d1 < dim; ++d1) {
+          for (unsigned int k1 = 2; k1 <= orders.bubble(d1); ++k1, ++l1) {
+            for (unsigned int d2 = 0, l2 = 0; d2 < dim; ++d2) {
+              for unsigned int k2 = 2; k2 <= orders.bubble(d2); ++k2, ++l2) {
+                A[l1][l2] += shapeGradients[idx+l1].dot(shapeGradients[idx+l2]) * qp.weight();
+              }
+            }
+            b[l1] += (dfAtQP - duAtQP).dot(shapeGradients[idx+l1]) * qp.weight();
+          }
+        }
       }
-    }
 
+      DynamicVector<R> coeff(sb);
+      A.solve(coeff, b);
+
+      for (unsigned int i = 0; i < sb; ++i)
+        out[idx++] = coeff[i];
+    }
   };
 
 } }    // namespace Dune::Impl
 
 namespace Dune
 {
-  /** \brief Lagrange finite element for cubes with arbitrary compile-time dimension and polynomial order
+  /** \brief Lobatto finite element for cubes with flexible polynomial order
    *
    * \tparam D Type used for domain coordinates
    * \tparam R Type used for function values
    * \tparam dim dimension of the reference element
-   * \tparam k Polynomial order in one coordinate direction
    */
-  template<class D, class R, int dim, int k>
+  template<class D, class R, int dim>
   class LobattoLocalFiniteElement
   {
+    using LB = Impl::LobattoLocalBasis<D,R,dim>;
+    using LC = Impl::LobattoLocalCoefficients<dim>;
+    using LI = Impl::LobattoLocalInterpolation<LB>;
+
   public:
     /** \brief Export number types, dimensions, etc.
      */
-    using Traits = LocalFiniteElementTraits<Impl::LobattoLocalBasis<D,R,dim,k>,
-                                            Impl::LobattoLocalCoefficients<dim,k>,
-                                            Impl::LobattoLocalInterpolation<Impl::LobattoLocalBasis<D,R,dim,k> > >;
+    using Traits = LocalFiniteElementTraits<LB, LC, LI>;
 
-    /** \brief Default constructor
-     *
-     * \deprecated This explicit implementation only exists to work around a bug in clang 3.8
-     *   which disappeared in clang 6
-     */
-    LobattoLocalFiniteElement() {}
+    LobattoLocalFiniteElement (LocalOrders<dim> orders)
+      : basis_(orders)
+      , coefficients_(orders)
+      , interpolation_(basis_)
+    {}
 
     /** \brief Returns the local basis, i.e., the set of shape functions
      */
@@ -888,9 +799,9 @@ namespace Dune
     }
 
     /** \brief The number of shape functions */
-    static constexpr std::size_t size ()
+    std::size_t size () const
     {
-      return power(k+1,dim);
+      return basis_.size();
     }
 
     /** \brief The reference element that the local finite element is defined on
