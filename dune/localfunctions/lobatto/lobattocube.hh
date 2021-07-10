@@ -3,8 +3,10 @@
 #ifndef DUNE_LOCALFUNCTIONS_LOBATTO_LOBATTO_HH
 #define DUNE_LOCALFUNCTIONS_LOBATTO_LOBATTO_HH
 
+#include <algorithm>
 #include <array>
 #include <numeric>
+#include <vector>
 
 #include <dune/common/fmatrix.hh>
 #include <dune/common/fvector.hh>
@@ -16,66 +18,10 @@
 #include <dune/localfunctions/common/localfiniteelementtraits.hh>
 #include <dune/localfunctions/common/localinterpolation.hh>
 #include <dune/localfunctions/common/localkey.hh>
+#include <dune/localfunctions/lobatto/lobatto.hh>
 
 namespace Dune { namespace Impl
 {
-  template<class D, class R>
-  struct Lobatto
-  {
-    // kernel function for the Lobatto shape functions for x in [0,1]
-    constexpr R phi (unsigned int k, D x) const
-    {
-      using std::sqrt;
-
-      static constexpr R coeffs[18][18] = {
-        {-1},
-        {-2, 1},
-        {-5, 5, -1},
-        {-14, 21, -9, 1},
-        {-42, 84, -56, 14, -1},
-        {-132, 330, -300, 120, -20, 1},
-        {-429, 1287, -1485, 825, -225, 27, -1},
-        {-1430, 5005, -7007, 5005, -1925, 385, -35, 1},
-        {-4862, 19448, -32032, 28028, -14014, 4004, -616, 44, -1},
-        {-16796, 75582, -143208, 148512, -91728, 34398, -7644, 936, -54, 1},
-        {-58786, 293930, -629850, 755820, -556920, 259896, -76440, 13650, -1365, 65, -1},
-        {-208012, 1144066, -2735810, 3730650, -3197700, 1790712, -659736, 157080, -23100, 1925, -77, 1},
-        {-742900, 4457400, -11767536, 17978180, -17587350, 11511720, -5116320, 1534896, -302940, 37400, -2640, 90, -1},
-        {-2674440, 17383860, -50220040, 84987760, -93486536, 70114902, -36581688, 13302432, -3325608, 554268, -58344, 3536, -104, 1},
-        {-9694845, 67863915, -212952285, 395482815, -483367885, 409003595, -245402157, 105172353, -32008977, 6789783, -969969, 88179, -4641, 119, -1},
-        {-35357670, 265182525, -898198875, 1816357725, -2442687975, 2303105805, -1563837275, 773326125, -278397405, 72177105, -13180167, 1633905, -129675, 5985, -135, 1},
-        {-129644790, 1037158320, -3771484800, 8250123000, -12109051500, 12593413560, -9553624080, 5361727800, -2234053250, 687401000, -153977824, 24496472, -2662660, 186200, -7600, 152, -1},
-        {-477638700, 4059928950, -15775723920, 37119350400, -59053512000, 67173369900, -56338955400, 35413057680, -16790673900, 5996669250, -1599111800, 313112800, -43835792, 4214980, -261800, 9520, -170, 1},
-      };
-
-      assert(k < 18);
-      auto const& c = coeffs[k];
-      auto const factor = R(2) / sqrt(R(2)/R(2*(k+2)-1));
-
-      // horner scheme for the evaluation
-      R y = x;
-      for (unsigned int i = 0; i < k; +i) {
-        y += c[i];
-        y *= x;
-      }
-      y += c[k];
-
-      return y * factor;
-    }
-
-    // Evaluation of the Lobatto shape functions for x in [0,1]
-    constexpr R operator() (unsigned int k, D x) const
-    {
-      assert(k < 20);
-      switch (k) {
-        case 0:  return 1-x;
-        case 1:  return x;
-        default: return (1-x)*x*phi(k-2,x);
-      }
-    }
-  };
-
-
   // Forward declaration
   template<class LocalBasis>
   class LobattoLocalInterpolation;
@@ -87,14 +33,13 @@ namespace Dune { namespace Impl
      \tparam dim Dimension of the domain cube
      \tparam k Polynomial order
    */
-  template<class D, class R, unsigned int dim, unsigned int k>
+  template<class D, class R, unsigned int dim>
   class LobattoLocalBasis
   {
     friend class LobattoLocalInterpolation<LobattoLocalBasis<D,R,dim,k> >;
 
-
     // Return i as a d-digit number in the (k+1)-nary system
-    static constexpr std::array<unsigned int,dim> multiindex (unsigned int i)
+    static std::array<unsigned int,dim> multiindex (unsigned int i)
     {
       std::array<unsigned int,dim> alpha;
       for (unsigned int j=0; j<dim; j++)
@@ -105,14 +50,104 @@ namespace Dune { namespace Impl
       return alpha;
     }
 
+    std::array<unsigned int, dim> pb_;
+    std::array<unsigned int, dim > 1 ? 2*dim*(dim-1) : 0> pf_;
+    std::array<unsigned int, dim > 2 ? 4*dim*(dim-2) : 0> pe_;
+    unsigned int maxP_;
+    unsigned int size_;
+
+    Lobatto<R,D> lobatto_{};
+
   public:
     using Traits = LocalBasisTraits<D,dim,FieldVector<D,dim>,R,1,FieldVector<R,1>,FieldMatrix<R,1,dim> >;
 
+    // p = polynomial degree
+    LobattoLocalBasis (unsigned int p)
+    {
+      std::fill(pb.begin(), pb.end(), p);
+      std::fill(pf.begin(), pf.end(), p);
+      std::fill(pe.begin(), pe.end(), p);
+      computeSize();
+    }
+
+    // 1d:
+    // pb = polynomial degree of cell functions
+    LobattoLocalBasis (std::array<unsigned int, 1> const& pb)
+      : pb_{pb}
+      , pf_{}
+      , pe_{}
+    {
+      static_assert(dim == 1);
+      computeSize();
+    }
+
+    // 2d:
+    // pb = polynomial degree of cell functions
+    // pf = polynomial degree of face functions
+    LobattoLocalBasis (std::array<unsigned int, 2> const& pb,
+                       std::array<unsigned int, 4> const& pf)
+      : pb_{pb}
+      , pf_{pf}
+      , pe_{}
+    {
+      static_assert(dim == 2);
+      computeSize();
+    }
+
+    // 3d:
+    // pb = polynomial degree of cell functions
+    // pf = polynomial degree of face functions
+    // pe = polynomial degree of edge functions
+    LobattoLocalBasis (std::array<unsigned int, 3> const& pb,
+                       std::array<unsigned int, 12> const& pf,
+                       std::array<unsigned int, 12> const& pe)
+      : pb_{pb}
+      , pf_{pf}
+      , pe_{pe}
+    {
+      static_assert(dim == 3);
+      computeSize();
+    }
+
+    void computeSize ()
+    {
+      using std::max;
+      using std::max_element;
+
+      maxP_ = *max_element(pb_.begin(), pb_.end());
+      maxP_ = max(maxP_, *max_element(pf_.begin(), pf_.end()));
+      maxP_ = max(maxP_, *max_element(pe_.begin(), pe_.end()));
+
+      if constexpr(dim == 1)
+        size_ = 2 + (pb_[0]-2);
+      else if constexpr(dim == 2) {
+        unsigned int vertexDofs = 4;
+        unsigned int edgeDofs = 0u;
+        for (unsigned int p : pf_)
+          edgeDofs += max(0u,p-2);
+        unsigned int bubbleDofs = max(0u,pb_[0]-2) * max(0u,pb_[1]-2)
+
+        size_ = vertexDofs + edgeDofs + bubbleDofs;
+      }
+      else if constexpr(dim == 3) {
+        unsigned int vertexDofs = 8;
+        unsigned int edgeDofs = 0u;
+        for (unsigned int p : pe_)
+          edgeDofs += max(0u,p-2);
+        unsigned int faceDofs = 0u;
+        for (unsigned int i = 0; i < pf_.size(); i+=2)
+          faceDofs += max(0u, pf_[i]-2) * max(0u, pf_[i+1]-2);
+        unsigned int bubbleDofs = max(0u,pb_[0]-2) * max(0u,pb_[1]-2) * max(0u,pb_[2]-2);
+
+        size_ = vertexDofs + edgeDofs + faceDofs + bubbleDofs;
+      }
+    }
+
     /** \brief Number of shape functions
      */
-    static constexpr unsigned int size ()
+    unsigned int size () const
     {
-      return power(k+1, dim);
+      return size_;
     }
 
     //! \brief Evaluate all shape functions
@@ -121,38 +156,108 @@ namespace Dune { namespace Impl
     {
       out.resize(size());
 
-      // Specialization for zero-order case
-      if (k==0)
-      {
-        out[0] = 1;
-        return;
+      std::vector<std::array<typename Traits::RangeFieldType, dim>> l;
+      l.resize(maxP_+1);
+      for (unsigned int k = 0; k <= maxP_; ++k)
+        for (unsigned int d = 0; d < dim; ++d)
+          l[k][d] = lobatto_(k,x[d]);
+
+
+      if constexpr(dim == 1) {
+        // vertex functions
+        out[0] = l[0][0];
+        out[1] = l[1][0];
+
+        // interior bubble functions
+        for (unsigned int k = 2; k <= pb_[0]; ++k)
+          out[k] = l[k][0];
       }
+      else if constexpr(dim == 2) {
+        // vertex functions
+        out[0] = l[0][0] * l[0][1];
+        out[1] = l[1][0] * l[0][1];
+        out[2] = l[0][0] * l[1][1];
+        out[3] = l[1][0] * l[1][1];
 
-      if (k==1)
-      {
-        for (size_t i=0; i<size(); i++)
-        {
-          out[i] = 1;
+        // edge functions
+        unsigned int i = 4;
+        for (unsigned int k = 2; k <= pf_[0]; ++k)
+          out[i++] = l[0][0] * l[k][1];
+        for (unsigned int k = 2; k <= pf_[1]; ++k)
+          out[i++] = l[1][0] * l[k][1];
+        for (unsigned int k = 2; k <= pf_[2]; ++k)
+          out[i++] = l[k][0] * l[0][1];
+        for (unsigned int k = 2; k <= pf_[3]; ++k)
+          out[i++] = l[k][0] * l[1][1];
 
-          for (unsigned int j=0; j<dim; j++)
-            // if j-th bit of i is set multiply with x[j], else with 1-x[j]
-            out[i] *= (i & (1<<j)) ? x[j] :  1-x[j];
-        }
-        return;
+        // interior bubble functions
+        for (unsigned int n1 = 2; n1 <= pb_[0]; ++n1)
+          for (unsigned int n2 = 2; n2 <= pb_[1]; ++n2)
+            out[i++] = l[n1][0] * l[n2][1];
       }
+      else if (dim == 3) {
+        // vertex functions
+        out[0] = l[0][0] * l[0][1] * l[0][2];
+        out[1] = l[1][0] * l[0][1] * l[0][2];
+        out[2] = l[0][0] * l[1][1] * l[0][2];
+        out[3] = l[1][0] * l[1][1] * l[0][2];
+        out[4] = l[0][0] * l[0][1] * l[1][2];
+        out[5] = l[1][0] * l[0][1] * l[1][2];
+        out[6] = l[0][0] * l[1][1] * l[1][2];
+        out[7] = l[1][0] * l[1][1] * l[1][2];
 
-      // General case
-      for (size_t i=0; i<size(); i++)
-      {
-        // convert index i to multiindex
-        std::array<unsigned int,dim> alpha(multiindex(i));
+        // edge functions
+        unsigned int i = 8;
+        for (unsigned int k = 2; k <= pe_[0]; ++k)
+          out[i++] = l[0][0] * l[0][1] * l[k][2];
+        for (unsigned int k = 2; k <= pe_[1]; ++k)
+          out[i++] = l[1][0] * l[0][1] * l[k][2];
+        for (unsigned int k = 2; k <= pe_[2]; ++k)
+          out[i++] = l[0][0] * l[1][1] * l[k][2];
+        for (unsigned int k = 2; k <= pe_[3]; ++k)
+          out[i++] = l[1][0] * l[1][1] * l[k][2];
+        for (unsigned int k = 2; k <= pe_[4]; ++k)
+          out[i++] = l[0][0] * l[k][1] * l[0][2];
+        for (unsigned int k = 2; k <= pe_[5]; ++k)
+          out[i++] = l[1][0] * l[k][1] * l[0][2];
+        for (unsigned int k = 2; k <= pe_[6]; ++k)
+          out[i++] = l[k][0] * l[0][1] * l[0][2];
+        for (unsigned int k = 2; k <= pe_[7]; ++k)
+          out[i++] = l[k][0] * l[1][1] * l[0][2];
+        for (unsigned int k = 2; k <= pe_[8]; ++k)
+          out[i++] = l[0][0] * l[k][1] * l[1][2];
+        for (unsigned int k = 2; k <= pe_[9]; ++k)
+          out[i++] = l[1][0] * l[k][1] * l[1][2];
+        for (unsigned int k = 2; k <= pe_[10]; ++k)
+          out[i++] = l[k][0] * l[0][1] * l[1][2];
+        for (unsigned int k = 2; k <= pe_[11]; ++k)
+          out[i++] = l[k][0] * l[1][1] * l[1][2];
 
-        // initialize product
-        out[i] = 1.0;
+        // face functions
+        for (unsigned int n1 = 2; n1 <= pf_[0]; ++n1)
+          for (unsigned int n2 = 2; n2 <= pf_[1]; ++n2)
+            out[i++] = l[0][0] * l[n1][1] * l[n2][2];
+        for (unsigned int n1 = 2; n1 <= pf_[2]; ++n1)
+          for (unsigned int n2 = 2; n2 <= pf_[3]; ++n2)
+            out[i++] = l[1][0] * l[n1][1] * l[n2][2];
+        for (unsigned int n1 = 2; n1 <= pf_[4]; ++n1)
+          for (unsigned int n2 = 2; n2 <= pf_[5]; ++n2)
+            out[i++] = l[n1][0] * l[0][1] * l[n2][2];
+        for (unsigned int n1 = 2; n1 <= pf_[6]; ++n1)
+          for (unsigned int n2 = 2; n2 <= pf_[7]; ++n2)
+            out[i++] = l[n1][0] * l[1][1] * l[n2][2];
+        for (unsigned int n1 = 2; n1 <= pf_[8]; ++n1)
+          for (unsigned int n2 = 2; n2 <= pf_[9]; ++n2)
+            out[i++] = l[n1][0] * l[n2][1] * l[0][2];
+        for (unsigned int n1 = 2; n1 <= pf_[10]; ++n1)
+          for (unsigned int n2 = 2; n2 <= pf_[11]; ++n2)
+            out[i++] = l[n1][0] * l[n2][1] * l[1][2];
 
-        // dimension by dimension
-        for (unsigned int j=0; j<dim; j++)
-          out[i] *= p(alpha[j],x[j]);
+        // interior bubble functions
+        for (unsigned int n1 = 2; n1 <= pb_[0]; ++n1)
+          for (unsigned int n2 = 2; n2 <= pb_[1]; ++n2)
+            for (unsigned int n3 = 2; n3 <= pb_[2]; ++n3)
+              out[i++] = l[n1][0] * l[n2][1] * l[n3][2];
       }
     }
 
@@ -166,56 +271,206 @@ namespace Dune { namespace Impl
     {
       out.resize(size());
 
-      // Specialization for k==0
-      if (k==0)
-      {
-        std::fill(out[0][0].begin(), out[0][0].end(), 0);
-        return;
+      std::vector<std::array<typename Traits::RangeFieldType, dim>> l,dl;
+      l.resize(maxP_+1);
+      dl.resize(maxP_+1);
+      for (unsigned int k = 0; k <= maxP_; ++k) {
+        for (unsigned int d = 0; d < dim; ++d) {
+          l[k][d] = lobatto_(k,x[d]);
+          dl[k][d] = lobatto_.d(k,x[d]);
+        }
       }
 
-      // Specialization for k==1
-      if (k==1)
-      {
-        // Loop over all shape functions
-        for (size_t i=0; i<size(); i++)
-        {
-          // Loop over all coordinate directions
-          for (unsigned int j=0; j<dim; j++)
-          {
-            // Initialize: the overall expression is a product
-            // if j-th bit of i is set to 1, else -11
-            out[i][0][j] = (i & (1<<j)) ? 1 : -1;
+      if constexpr(dim == 1) {
+        // vertex functions
+        out[0][0] = dl[0][0];
+        out[1][0] = dl[1][0];
 
-            for (unsigned int l=0; l<dim; l++)
-            {
-              if (j!=l)
-                // if l-th bit of i is set multiply with x[l], else with 1-x[l]
-                out[i][0][j] *= (i & (1<<l)) ? x[l] :  1-x[l];
-            }
+        // interior bubble functions
+        for (unsigned int k = 2; k <= pb_[0]; ++k)
+          out[k][0] = dl[k][0];
+      }
+      else if constexpr(dim == 2) {
+        // vertex functions
+        out[0][0] = dl[0][0] * l[0][1];
+        out[0][1] = l[0][0] * dl[0][1];
+        out[1][0] = dl[1][0] * l[0][1];
+        out[1][1] = l[1][0] * dl[0][1];
+        out[2][0] = dl[0][0] * l[1][1];
+        out[2][1] = l[0][0] * dl[1][1];
+        out[3][0] = dl[1][0] * l[1][1];
+        out[3][1] = l[1][0] * dl[1][1];
+
+        // edge functions
+        unsigned int i = 4;
+        for (unsigned int k = 2; k <= pf_[0]; ++k,++i) {
+          out[i][0] = dl[0][0] * l[k][1];
+          out[i][1] = l[0][0] * dl[k][1];
+        }
+        for (unsigned int k = 2; k <= pf_[1]; ++k,++i) {
+          out[i][0] = dl[1][0] * l[k][1];
+          out[i][0] = l[1][0] * dl[k][1];
+        }
+        for (unsigned int k = 2; k <= pf_[2]; ++k,++i) {
+          out[i][0] = dl[k][0] * l[0][1];
+          out[i][1] = l[k][0] * dl[0][1];
+        }
+        for (unsigned int k = 2; k <= pf_[3]; ++k,++i) {
+          out[i][0] = dl[k][0] * l[1][1];
+          out[i][1] = l[k][0] * dl[1][1];
+        }
+
+        // interior bubble functions
+        for (unsigned int n1 = 2; n1 <= pb_[0]; ++n1) {
+          for (unsigned int n2 = 2; n2 <= pb_[1]; ++n2,++i) {
+            out[i][0] = dl[n1][0] * l[n2][1];
+            out[i][1] = l[n1][0] * dl[n2][1];
           }
         }
-        return;
       }
+      else if (dim == 3) {
+        // vertex functions
+        out[0][0] = dl[0][0] * l[0][1] * l[0][2];
+        out[0][1] = l[0][0] * dl[0][1] * l[0][2];
+        out[0][2] = l[0][0] * l[0][1] * dl[0][2];
+        out[1][0] = dl[1][0] * l[0][1] * l[0][2];
+        out[1][1] = l[1][0] * dl[0][1] * l[0][2];
+        out[1][2] = l[1][0] * l[0][1] * dl[0][2];
+        out[2][0] = dl[0][0] * l[1][1] * l[0][2];
+        out[2][1] = l[0][0] * dl[1][1] * l[0][2];
+        out[2][2] = l[0][0] * l[1][1] * dl[0][2];
+        out[3][0] = dl[1][0] * l[1][1] * l[0][2];
+        out[3][1] = l[1][0] * dl[1][1] * l[0][2];
+        out[3][2] = l[1][0] * l[1][1] * dl[0][2];
+        out[4][0] = dl[0][0] * l[0][1] * l[1][2];
+        out[4][1] = l[0][0] * dl[0][1] * l[1][2];
+        out[4][2] = l[0][0] * l[0][1] * dl[1][2];
+        out[5][0] = dl[1][0] * l[0][1] * l[1][2];
+        out[5][1] = l[1][0] * dl[0][1] * l[1][2];
+        out[5][2] = l[1][0] * l[0][1] * dl[1][2];
+        out[6][0] = dl[0][0] * l[1][1] * l[1][2];
+        out[6][1] = l[0][0] * dl[1][1] * l[1][2];
+        out[6][2] = l[0][0] * l[1][1] * dl[1][2];
+        out[7][0] = dl[1][0] * l[1][1] * l[1][2];
+        out[7][1] = l[1][0] * dl[1][1] * l[1][2];
+        out[7][2] = l[1][0] * l[1][1] * dl[1][2];
 
-      // The general case
+        // edge functions
+        unsigned int i = 8;
+        for (unsigned int k = 2; k <= pe_[0]; ++k, ++i) {
+          out[i][0] = dl[0][0] * l[0][1] * l[k][2];
+          out[i][1] = l[0][0] * dl[0][1] * l[k][2];
+          out[i][2] = l[0][0] * l[0][1] * dl[k][2];
+        }
+        for (unsigned int k = 2; k <= pe_[1]; ++k, ++i) {
+          out[i][0] = dl[1][0] * l[0][1] * l[k][2];
+          out[i][1] = l[1][0] * dl[0][1] * l[k][2];
+          out[i][2] = l[1][0] * l[0][1] * dl[k][2];
+        }
+        for (unsigned int k = 2; k <= pe_[2]; ++k, ++i) {
+          out[i][0] = dl[0][0] * l[1][1] * l[k][2];
+          out[i][1] = l[0][0] * dl[1][1] * l[k][2];
+          out[i][2] = l[0][0] * l[1][1] * dl[k][2];
+        }
+        for (unsigned int k = 2; k <= pe_[3]; ++k, ++i) {
+          out[i][0] = dl[1][0] * l[1][1] * l[k][2];
+          out[i][1] = l[1][0] * dl[1][1] * l[k][2];
+          out[i][2] = l[1][0] * l[1][1] * dl[k][2];
+        }
+        for (unsigned int k = 2; k <= pe_[4]; ++k, ++i) {
+          out[i][0] = dl[0][0] * l[k][1] * l[0][2];
+          out[i][1] = l[0][0] * dl[k][1] * l[0][2];
+          out[i][2] = l[0][0] * l[k][1] * dl[0][2];
+        }
+        for (unsigned int k = 2; k <= pe_[5]; ++k, ++i) {
+          out[i][0] = dl[1][0] * l[k][1] * l[0][2];
+          out[i][1] = l[1][0] * dl[k][1] * l[0][2];
+          out[i][2] = l[1][0] * l[k][1] * dl[0][2];
+        }
+        for (unsigned int k = 2; k <= pe_[6]; ++k, ++i) {
+          out[i][0] = dl[k][0] * l[0][1] * l[0][2];
+          out[i][1] = l[k][0] * dl[0][1] * l[0][2];
+          out[i][2] = l[k][0] * l[0][1] * dl[0][2];
+        }
+        for (unsigned int k = 2; k <= pe_[7]; ++k, ++i) {
+          out[i][0] = dl[k][0] * l[1][1] * l[0][2];
+          out[i][1] = l[k][0] * dl[1][1] * l[0][2];
+          out[i][2] = l[k][0] * l[1][1] * dl[0][2];
+        }
+        for (unsigned int k = 2; k <= pe_[8]; ++k, ++i) {
+          out[i][0] = dl[0][0] * l[k][1] * l[1][2];
+          out[i][1] = l[0][0] * dl[k][1] * l[1][2];
+          out[i][2] = l[0][0] * l[k][1] * dl[1][2];
+        }
+        for (unsigned int k = 2; k <= pe_[9]; ++k, ++i) {
+          out[i][0] = dl[1][0] * l[k][1] * l[1][2];
+          out[i][1] = l[1][0] * dl[k][1] * l[1][2];
+          out[i][2] = l[1][0] * l[k][1] * dl[1][2];
+        }
+        for (unsigned int k = 2; k <= pe_[10]; ++k, ++i) {
+          out[i][0] = dl[k][0] * l[0][1] * l[1][2];
+          out[i][1] = l[k][0] * dl[0][1] * l[1][2];
+          out[i][2] = l[k][0] * l[0][1] * dl[1][2];
+        }
+        for (unsigned int k = 2; k <= pe_[11]; ++k, ++i) {
+          out[i][0] = dl[k][0] * l[1][1] * l[1][2];
+          out[i][1] = l[k][0] * dl[1][1] * l[1][2];
+          out[i][2] = l[k][0] * l[1][1] * dl[1][2];
+        }
 
-      // Loop over all shape functions
-      for (size_t i=0; i<size(); i++)
-      {
-        // convert index i to multiindex
-        std::array<unsigned int,dim> alpha(multiindex(i));
+        // face functions
+        for (unsigned int n1 = 2; n1 <= pf_[0]; ++n1) {
+          for (unsigned int n2 = 2; n2 <= pf_[1]; ++n2, ++i) {
+            out[i][0] = dl[0][0] * l[n1][1] * l[n2][2];
+            out[i][1] = l[0][0] * dl[n1][1] * l[n2][2];
+            out[i][2] = l[0][0] * l[n1][1] * dl[n2][2];
+          }
+        }
+        for (unsigned int n1 = 2; n1 <= pf_[2]; ++n1) {
+          for (unsigned int n2 = 2; n2 <= pf_[3]; ++n2, ++i) {
+            out[i][0] = dl[1][0] * l[n1][1] * l[n2][2];
+            out[i][1] = l[1][0] * dl[n1][1] * l[n2][2];
+            out[i][2] = l[1][0] * l[n1][1] * dl[n2][2];
+          }
+        }
+        for (unsigned int n1 = 2; n1 <= pf_[4]; ++n1) {
+          for (unsigned int n2 = 2; n2 <= pf_[5]; ++n2, ++i) {
+            out[i][0] = dl[n1][0] * l[0][1] * l[n2][2];
+            out[i][1] = l[n1][0] * dl[0][1] * l[n2][2];
+            out[i][2] = l[n1][0] * l[0][1] * dl[n2][2];
+          }
+        }
+        for (unsigned int n1 = 2; n1 <= pf_[6]; ++n1) {
+          for (unsigned int n2 = 2; n2 <= pf_[7]; ++n2, ++i) {
+            out[i][0] = dl[n1][0] * l[1][1] * l[n2][2];
+            out[i][1] = l[n1][0] * dl[1][1] * l[n2][2];
+            out[i][2] = l[n1][0] * l[1][1] * dl[n2][2];
+          }
+        }
+        for (unsigned int n1 = 2; n1 <= pf_[8]; ++n1) {
+          for (unsigned int n2 = 2; n2 <= pf_[9]; ++n2, ++i) {
+            out[i][0] = dl[n1][0] * l[n2][1] * l[0][2];
+            out[i][1] = l[n1][0] * dl[n2][1] * l[0][2];
+            out[i][2] = l[n1][0] * l[n2][1] * dl[0][2];
+          }
+        }
+        for (unsigned int n1 = 2; n1 <= pf_[10]; ++n1) {
+          for (unsigned int n2 = 2; n2 <= pf_[11]; ++n2, ++i) {
+            out[i][0] = dl[n1][0] * l[n2][1] * l[1][2];
+            out[i][1] = l[n1][0] * dl[n2][1] * l[1][2];
+            out[i][2] = l[n1][0] * l[n2][1] * dl[1][2];
+          }
+        }
 
-        // Loop over all coordinate directions
-        for (unsigned int j=0; j<dim; j++)
-        {
-          // Initialize: the overall expression is a product
-          // if j-th bit of i is set to -1, else 1
-          out[i][0][j] = dp(alpha[j],x[j]);
-
-          // rest of the product
-          for (unsigned int l=0; l<dim; l++)
-            if (l!=j)
-              out[i][0][j] *= p(alpha[l],x[l]);
+        // interior bubble functions
+        for (unsigned int n1 = 2; n1 <= pb_[0]; ++n1) {
+          for (unsigned int n2 = 2; n2 <= pb_[1]; ++n2) {
+            for (unsigned int n3 = 2; n3 <= pb_[2]; ++n3, ++i) {
+              out[i][0] = dl[n1][0] * l[n2][1] * l[n3][2];
+              out[i][1] = l[n1][0] * dl[n2][1] * l[n3][2];
+              out[i][2] = l[n1][0] * l[n2][1] * dl[n3][2];
+            }
+          }
         }
       }
     }
@@ -230,119 +485,13 @@ namespace Dune { namespace Impl
                  const typename Traits::DomainType& in,
                  std::vector<typename Traits::RangeType>& out) const
     {
-      auto totalOrder = std::accumulate(order.begin(), order.end(), 0);
-
-      out.resize(size());
-
-      if (k==0)
-      {
-        out[0] = (totalOrder==0);
-        return;
-      }
-
-      if (k==1)
-      {
-        if (totalOrder == 0)
-        {
-          evaluateFunction(in, out);
-        }
-        else if (totalOrder == 1)
-        {
-          out.resize(size());
-
-          auto direction = std::distance(order.begin(), std::find(order.begin(), order.end(), 1));
-          if (direction >= dim)
-            DUNE_THROW(RangeError, "Direction of partial derivative not found!");
-
-          // Loop over all shape functions
-          for (std::size_t i = 0; i < size(); ++i)
-          {
-            // Initialize: the overall expression is a product
-            // if j-th bit of i is set to 1, otherwise to -1
-            out[i] = (i & (1<<direction)) ? 1 : -1;
-
-            for (unsigned int j = 0; j < dim; ++j)
-            {
-              if (direction != j)
-                // if j-th bit of i is set multiply with in[j], else with 1-in[j]
-                out[i] *= (i & (1<<j)) ? in[j] :  1-in[j];
-            }
-          }
-        }
-        else if (totalOrder == 2)
-        {
-
-          for (size_t i=0; i<size(); i++)
-          {
-            // convert index i to multiindex
-            std::array<unsigned int,dim> alpha(multiindex(i));
-
-            // Initialize: the overall expression is a product
-            out[i][0] = 1.0;
-
-            // rest of the product
-            for (std::size_t l=0; l<dim; l++)
-            {
-              switch (order[l])
-              {
-                case 0:
-                  out[i][0] *= p(alpha[l],in[l]);
-                  break;
-                case 1:
-                  //std::cout << "dp: " << dp(alpha[l],in[l]) << std::endl;
-                  out[i][0] *= dp(alpha[l],in[l]);
-                  break;
-                case 2:
-                  out[i][0] *= 0;
-                  break;
-                default:
-                  DUNE_THROW(NotImplemented, "Desired derivative order is not implemented");
-              }
-            }
-          }
-        }
-        else
-          DUNE_THROW(NotImplemented, "Partial derivative of order " << totalOrder << " is not implemented!");
-
-        return;
-      }
-
-      // The case k>1
-
-      // Loop over all shape functions
-      for (size_t i=0; i<size(); i++)
-      {
-        // convert index i to multiindex
-        std::array<unsigned int,dim> alpha(multiindex(i));
-
-        // Initialize: the overall expression is a product
-        out[i][0] = 1.0;
-
-        // rest of the product
-        for (std::size_t l=0; l<dim; l++)
-        {
-          switch (order[l])
-          {
-            case 0:
-              out[i][0] *= p(alpha[l],in[l]);
-              break;
-            case 1:
-              out[i][0] *= dp(alpha[l],in[l]);
-              break;
-            case 2:
-              out[i][0] *= ddp(alpha[l],in[l]);
-              break;
-            default:
-              DUNE_THROW(NotImplemented, "Desired derivative order is not implemented");
-          }
-        }
-      }
+      DUNE_THROW(NotImplemented, "Partial derivative is not implemented!");
     }
 
     //! \brief Polynomial order of the shape functions
-    static constexpr unsigned int order ()
+    unsigned int order () const
     {
-      return k;
+      return maxP_;
     }
   };
 

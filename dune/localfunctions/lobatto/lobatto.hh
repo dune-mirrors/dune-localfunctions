@@ -9,6 +9,7 @@
 #include <dune/common/fmatrix.hh>
 #include <dune/common/fvector.hh>
 #include <dune/common/math.hh>
+#include <dune/common/quadmath.hh>
 
 #include <dune/geometry/referenceelements.hh>
 
@@ -27,9 +28,15 @@ namespace Dune
     using Range = R;
     using Domain = D;
 
+#if HAVE_QUADMATH
+    using HP = Dune::Float128;
+#else
+    using HP = long double;
+#endif
+
     auto const& coefficients (unsigned int k) const
     {
-      static const Range coeffs[18][18] = {
+      static const HP coeffs[18][18] = {
         {-1},
         {-2, 1},
         {-5, 5, -1},
@@ -57,16 +64,17 @@ namespace Dune
     Range phi (unsigned int k, Domain x) const
     {
       using std::sqrt;
+      using std::fma;
 
       assert(k < 18);
       auto const& c = coefficients(k);
-      auto const factor = R(2) / sqrt(R(2)/R(2*(k+2)-1));
+      auto const factor = HP(2) / sqrt(HP(2)/HP(2*(k+2)-1));
 
       // horner scheme for the evaluation
-      Range y = c[0];
-      for (unsigned int i = 1; i <= k; ++i) {
-        y *= x; y += c[i];
-      }
+      HP x0 = x;
+      HP y = c[0];
+      for (unsigned int i = 1; i <= k; ++i)
+        y = fma(y, x0, c[i]); // y = y*x + c[i]
 
       return y * factor;
     }
@@ -74,21 +82,27 @@ namespace Dune
     std::pair<Range,Range> dphi (unsigned int k, Domain x) const
     {
       using std::sqrt;
+      using std::fma;
 
       assert(k < 18);
       auto const& c = coefficients(k);
-      auto const factor = R(2) / sqrt(R(2)/R(2*(k+2)-1));
+      auto const factor = HP(2) / sqrt(HP(2)/HP(2*(k+2)-1));
 
       switch (k) {
-        case 0: return {c[0] * factor, R(0)};
-        case 1: return {(c[0]*x + c[1])*factor, c[0] * factor};
+        case 0:
+          return {c[0]*factor, R(0)};
+        case 1:
+          return {(c[0]*x+c[1])*factor, c[0]*factor};
+        case 2:
+          return {((c[0]*x+c[1])*x+c[2])*factor, (2*c[0]*x+c[1])*factor};
         default: {
           // horner scheme for the evaluation
-          Range y = c[0];
-          Range dy = 0;
+          HP x0 = x;
+          HP y = c[0];
+          HP dy = 0;
           for (unsigned int i = 1; i <= k; ++i) {
-            dy *= x;  dy += y;
-            y  *= x;  y  += c[i];
+            dy = fma(dy, x0, y);    // dy = dy*x + y
+            y = fma(y, x0, c[i]);  // y = y*x + c[i]
           }
 
           return {y * factor, dy * factor};
@@ -99,26 +113,32 @@ namespace Dune
     std::tuple<Range,Range,Range> d2phi (unsigned int k, Domain x) const
     {
       using std::sqrt;
+      using std::fma;
 
       assert(k < 18);
       auto const& c = coefficients(k);
-      auto const factor = R(2) / sqrt(R(2)/R(2*(k+2)-1));
+      auto const factor = HP(2) / sqrt(HP(2)/HP(2*(k+2)-1));
 
       switch (k) {
-        case 0: return {c[0] * factor, R(0), R(0)};
-        case 1: return {(c[0]*x + c[1])*factor, c[0] * factor, R(0)};
+        case 0:
+          return {c[0]*factor, R(0), R(0)};
+        case 1:
+          return {(c[0]*x+c[1])*factor, c[0]*factor, R(0)};
+        case 2:
+          return {((c[0]*x+c[1])*x+c[2])*factor, (2*c[0]*x+c[1])*factor, 2*c[0]*factor};
         default: {
           // horner scheme for the evaluation
-          Range y = c[0];
-          Range dy = 0;
-          Range d2y = 0;
-          for (unsigned int i = 2; i <= k; ++i) {
-            d2y*= x;  d2y+= dy;
-            dy *= x;  dy += y;
-            y  *= x;  y  += c[i];
+          HP x0 = x;
+          HP y = c[0];
+          HP dy = 0;
+          HP d2y = 0;
+          for (unsigned int i = 1; i <= k; ++i) {
+            d2y = fma(d2y, x0, dy);  // d2y = d2y*x + dy
+            dy = fma(dy, x0, y);    // dy = dy*x + y
+            y = fma(y, x0, c[i]);  // y = y*x + c[i]
           }
 
-          return {y * factor, dy * factor, d2y * factor};
+          return {y * factor, dy * factor, 2*d2y * factor};
         }
       }
     }
@@ -135,12 +155,13 @@ namespace Dune
     }
 
     // Evaluation of the derivative of Lobatto shape functions for x in [0,1]
-    Range derivative (unsigned int k, Domain x) const
+    Range d (unsigned int k, Domain x) const
     {
       assert(k < 20);
       switch (k) {
-        case 0:  return R(-1);
-        case 1:  return R(1);
+        case 0: return R(-1);
+        case 1: return R(1);
+        case 2: return (R(1) - R(2)*x) * phi(k-2, x);
         default: {
           auto [p,dp] = dphi(k-2, x);
           return (R(1) - R(2)*x) * p + (R(1) - x) * x * dp;
@@ -149,12 +170,17 @@ namespace Dune
     }
 
     // Evaluation of the second derivative of Lobatto shape functions for x in [0,1]
-    Range derivative2 (unsigned int k, Domain x) const
+    Range d2 (unsigned int k, Domain x) const
     {
       assert(k < 20);
       switch (k) {
-        case 0:  return R(0);
-        case 1:  return R(0);
+        case 0: return R(0);
+        case 1: return R(0);
+        case 2: return -R(2)*phi(k-2, x);
+        case 3: {
+          auto [p,dp] = dphi(k-2, x);
+          return -R(2) * p + 2*(R(1)-R(2)*x) * dp;
+        }
         default: {
           auto [p,dp,d2p] = d2phi(k-2, x);
           return -R(2) * p + 2*(R(1)-R(2)*x) * dp + (R(1)-x)*x * d2p;
