@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: LicenseRef-GPL-2.0-only-with-DUNE-exception
 
 install(FILES
+  derivative.hh
   interface.hh
   interfaceswitch.hh
   localbasis.hh

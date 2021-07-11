@@ -21,6 +21,7 @@
 #include <dune/geometry/quadraturerules.hh>
 #include <dune/geometry/referenceelements.hh>
 
+#include <dune/localfunctions/common/derivative.hh>
 #include <dune/localfunctions/common/virtualinterface.hh>
 #include <dune/localfunctions/common/virtualwrappers.hh>
 
@@ -200,9 +201,11 @@ bool testLocalInterpolation(const FE& fe)
 template<class Domain, class Range>
 struct ConstantOneFunction
 {
+  using JacobianType = typename Dune::Impl::DerivativeTraits<Range(Domain)>::type;
+
   Range operator() (const Domain&) const { return Range(1.0); }
 
-  Domain derivative (const Domain&) const { return Domain(0.0); }
+  JacobianType derivative (const Domain&) const { return JacobianType(0.0); }
 };
 
 
