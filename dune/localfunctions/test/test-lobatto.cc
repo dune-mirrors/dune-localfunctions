@@ -108,7 +108,7 @@ int main (int argc, char **argv)
   // --------------------------------------------------------------------------
   // check the cube shape functions
 
-  char disableFlags = DisableEvaluate + DisableVirtualInterface;
+  char disableFlags = DisableEvaluate; // + DisableVirtualInterface;
 
   // 1d
   Dune::LobattoLocalFiniteElement<double,double,1> lobattoCube1d_p1{1};

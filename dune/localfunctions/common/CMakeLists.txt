@@ -1,4 +1,5 @@
 install(FILES
+  derivative.hh
   interface.hh
   interfaceswitch.hh
   localbasis.hh
