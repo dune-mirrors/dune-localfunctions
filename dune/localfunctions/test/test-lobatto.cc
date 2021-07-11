@@ -5,6 +5,8 @@
 #include <dune/common/test/testsuite.hh>
 #include <dune/geometry/quadraturerules.hh>
 #include <dune/localfunctions/lobatto/lobatto.hh>
+#include <dune/localfunctions/lobatto/lobattocube.hh>
+#include <dune/localfunctions/test/test-localfe.hh>
 
 template <class T>
 bool almost_equal (T x, T y)
@@ -101,6 +103,44 @@ int main (int argc, char **argv)
   testSuite.check(almost_equal_or_print(lobatto.d2(4,0.25),  2.80624304008046), "d2l_4(0.25)");
   testSuite.check(almost_equal_or_print(lobatto.d2(5,0.25), 13.2582521472478),  "d2l_5(0.25)");
   testSuite.check(almost_equal_or_print(lobatto.d2(6,0.25),-20.8870076804637),  "d2l_6(0.25)");
+
+
+  // --------------------------------------------------------------------------
+  // check the cube shape functions
+
+  char disableFlags = DisableEvaluate + DisableVirtualInterface;
+
+  // 1d
+  Dune::LobattoLocalFiniteElement<double,double,1> lobattoCube1d_p1{1};
+  testSuite.check(testFE(lobattoCube1d_p1, disableFlags), "lobattoCube1d_p1");
+
+  for (unsigned int pb = 1; pb < 6; ++pb) {
+    Dune::LobattoLocalFiniteElement<double,double,1> lobattoCube1d_pn(LobattoOrders<1>{pb});
+    testSuite.check(testFE(lobattoCube1d_pn, disableFlags),
+      "lobattoCube1d_p" + std::to_string(pb));
+  }
+
+
+  // 2d
+  Dune::LobattoLocalFiniteElement<double,double,2> lobattoCube2d_p1{1};
+  testSuite.check(testFE(lobattoCube2d_p1, disableFlags), "lobattoCube2d_p1");
+
+  for (unsigned int pb = 1; pb < 6; ++pb) {
+    Dune::LobattoLocalFiniteElement<double,double,2> lobattoCube2d_pn1(LobattoOrders<2>{pb,1});
+    testSuite.check(testFE(lobattoCube2d_pn1, disableFlags),
+      "lobattoCube2d_p" + std::to_string(pb) + "1");
+  }
+
+
+  // 3d
+  Dune::LobattoLocalFiniteElement<double,double,3> lobattoCube3d_p1{1};
+  testSuite.check(testFE(lobattoCube3d_p1, disableFlags), "lobattoCube3d_p1");
+
+  for (unsigned int pb = 1; pb < 6; ++pb) {
+    Dune::LobattoLocalFiniteElement<double,double,3> lobattoCube3d_pn11(LobattoOrders<3>{pb,1,1});
+    testSuite.check(testFE(lobattoCube3d_pn11, disableFlags),
+      "lobattoCube3d_p" + std::to_string(pb) + "11");
+  }
 
   return testSuite.exit();
 }
