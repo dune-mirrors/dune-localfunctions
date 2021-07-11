@@ -29,8 +29,8 @@ namespace Dune
       : pb_{pb}
     {
       maxP_ = *std::max_element(pb_.begin(), pb_.end());
-      vertexDofs_ = 2;
-      cellDofs_ = std::max(0,int(pb_[0])-1);
+      vertexDofs_ = size(dim);
+      cellDofs_ = size(0);
     }
 
     unsigned int size () const
@@ -47,6 +47,38 @@ namespace Dune
     {
       return pb_[k];
     }
+
+    //! Total number of DOFs
+    unsigned int size () const
+    {
+      unsigned int s = 0;
+      for (unsigned int c = 0; c <= dim; ++c)
+        s += size(c);
+      return s;
+    }
+
+    //! Number of DOFs associated to all entities of codim c
+    unsigned int size (int c) const
+    {
+      auto refElem = referenceElement<double,dim>(GeometryTypes::cube(dim));
+
+      unsigned int s = 0;
+      for (unsigned int i = 0; i < refElem.size(c); ++i)
+        s += size(i,c);
+      return s;
+    }
+
+    //! Number of DOFs associated to the i'th entity of codim c
+    unsigned int size (unsigned int i, int c) const
+    {
+      switch (c) {
+        case 0:
+          assert(i == 0);
+          return std::max(0,int(cell(i))-1);
+        case 1:
+          return 1;
+      }
+    }
   };
 
   template<>
@@ -58,14 +90,9 @@ namespace Dune
     unsigned int maxP_;
     unsigned int vertexDofs_,edgeDofs_,cellDofs_;
 
-    // p = polynomial degree on all parts
-    LobattoOrders (unsigned int p)
-      : LobattoOrders(p,p)
-    {}
-
     // p = polynomial degree of element bubble functions
     // q = polynomial degree of edge functions
-    LobattoOrders (unsigned int p, unsigned int q)
+    LobattoOrders (unsigned int p, unsigned int q = 1)
       : LobattoOrders(std::array{p,p}, std::array{q,q,q,q})
     {}
 
@@ -79,16 +106,9 @@ namespace Dune
       maxP_ = *std::max_element(pb_.begin(), pb_.end());
       maxP_ = std::max(maxP_, *std::max_element(pe_.begin(), pe_.end()));
 
-      vertexDofs_ = 4;
-      edgeDofs_ = 0;
-      for (unsigned int p : pe_)
-        edgeDofs_ += std::max(0,int(p)-1);
-      cellDofs_ = std::max(0,int(pb_[0])-1) * std::max(0,int(pb_[1])-1);
-    }
-
-    unsigned int size () const
-    {
-      return vertexDofs_ + edgeDofs_ + cellDofs_;
+      vertexDofs_ = size(dim);
+      edgeDofs_ = size(dim-1);
+      cellDofs_ = size(0);
     }
 
     unsigned int max () const
@@ -105,6 +125,43 @@ namespace Dune
     {
       return pe_[k];
     }
+
+    //! Total number of DOFs
+    unsigned int size () const
+    {
+      unsigned int s = 0;
+      for (unsigned int c = 0; c <= dim; ++c)
+        s += size(c);
+      return s;
+    }
+
+    //! Number of DOFs associated to all entities of codim c
+    unsigned int size (int c) const
+    {
+      auto refElem = referenceElement<double,dim>(GeometryTypes::cube(dim));
+
+      unsigned int s = 0;
+      for (unsigned int i = 0; i < refElem.size(c); ++i)
+        s += size(i,c);
+      return s;
+    }
+
+    //! Number of DOFs associated to the i'th entity of codim c
+    unsigned int size (unsigned int i, int c) const
+    {
+      switch (c) {
+        case 0:
+          assert(i == 0);
+          return std::max(0,int(cell(0))-1)*std::max(0,int(cell(1))-1);
+        case 1:
+          return std::max(0,int(edge(i))-1);
+        case 2:
+          return 1;
+        default:
+          assert(false && "Unsupported codimension!");
+          std::abort();
+      }
+    }
   };
 
   template<>
@@ -117,15 +174,10 @@ namespace Dune
     unsigned int maxP_;
     unsigned int vertexDofs_,edgeDofs_,faceDofs_,cellDofs_;
 
-    // p = polynomial degree on all parts
-    LobattoOrders (unsigned int p)
-      : LobattoOrders(p,p,p)
-    {}
-
     // pb = polynomial degree of element bubble functions
     // pf = polynomial degree of face functions
     // pe = polynomial degree of edge functions
-    LobattoOrders (unsigned int pb, unsigned int pf, unsigned int pe)
+    LobattoOrders (unsigned int pb, unsigned int pf = 1, unsigned int pe = 1)
       : LobattoOrders(filledArray<3>(pb), filledArray<12>(pf), filledArray<12>(pe))
     {}
 
@@ -143,20 +195,10 @@ namespace Dune
       maxP_ = std::max(maxP_, *std::max_element(pf_.begin(), pf_.end()));
       maxP_ = std::max(maxP_, *std::max_element(pe_.begin(), pe_.end()));
 
-      vertexDofs_ = 8;
-      edgeDofs_ = 0;
-      for (unsigned int p : pe_)
-        edgeDofs_ += std::max(0,int(p)-1);
-      faceDofs_ = 0;
-      for (unsigned int i = 0; i < pf_.size(); i+=2)
-        faceDofs_ += std::max(0,int(pf_[i])-1) * std::max(0,int(pf_[i+1])-1);
-      cellDofs_ = std::max(0,int(pb_[0])-1) * std::max(0,int(pb_[1])-1) * std::max(0,int(pb_[2])-1);
-    }
-
-    // total number of DOFs
-    unsigned int size () const
-    {
-      return vertexDofs_ + edgeDofs_ + faceDofs_ + cellDofs_;
+      vertexDofs_ = size(dim);
+      edgeDofs_ = size(dim-1);
+      faceDofs_ = size(dim-2);
+      cellDofs_ = size(0);
     }
 
     // maximal polynomial order
@@ -181,6 +223,45 @@ namespace Dune
     unsigned int edge (unsigned int k) const
     {
       return pe_[k];
+    }
+
+    //! Total number of DOFs
+    unsigned int size () const
+    {
+      unsigned int s = 0;
+      for (unsigned int c = 0; c <= dim; ++c)
+        s += size(c);
+      return s;
+    }
+
+    //! Number of DOFs associated to all entities of codim c
+    unsigned int size (int c) const
+    {
+      auto refElem = referenceElement<double,dim>(GeometryTypes::cube(dim));
+
+      unsigned int s = 0;
+      for (unsigned int i = 0; i < refElem.size(c); ++i)
+        s += size(i,c);
+      return s;
+    }
+
+    //! Number of DOFs associated to the i'th entity of codim c
+    unsigned int size (unsigned int i, int c) const
+    {
+      switch (c) {
+        case 0:
+          assert(i == 0);
+          return std::max(0,int(cell(0))-1)*std::max(0,int(cell(1))-1)*std::max(0,int(cell(2))-1);
+        case 1:
+          return std::max(0,int(face(2*i))-1)*std::max(0,int(face(2*i+1))-1);
+        case 2:
+          return std::max(0,int(edge(i))-1);
+        case 3:
+          return 1;
+        default:
+          assert(false && "Unsupported codimension!");
+          std::abort();
+      }
     }
   };
 
