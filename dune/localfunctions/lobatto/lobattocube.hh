@@ -221,7 +221,7 @@ namespace Dune { namespace Impl
         }
         for (unsigned int k = 2; k <= orders_.edge(1); ++k,++i) {
           out[i][0][0] = dl[1][0] * l[k][1];
-          out[i][0][0] = l[1][0] * dl[k][1];
+          out[i][0][1] = l[1][0] * dl[k][1];
         }
         for (unsigned int k = 2; k <= orders_.edge(2); ++k,++i) {
           out[i][0][0] = dl[k][0] * l[0][1];
@@ -515,67 +515,71 @@ namespace Dune { namespace Impl
       const unsigned int dim = LocalBasis::Traits::dimDomain;
       using D = typename LocalBasis::Traits::DomainFieldType;
       using R = typename LocalBasis::Traits::RangeFieldType;
-      using JacobianType = typename LocalBasis::Traits::JacobianType;
+      using RangeType = typename LocalBasis::Traits::RangeType;
+      std::vector<RangeType> shapeValues;
 
       auto refElem = referenceElement<D,dim>(GeometryTypes::cube(dim));
       LobattoOrders<dim> const& orders = localBasis_.orders_;
 
       auto&& f = Impl::makeFunctionWithCallOperator<typename LocalBasis::Traits::DomainType>(ff);
-      auto&& df = Impl::makeDerivative<typename LocalBasis::Traits::DomainType>(ff);
 
-      // vertex functions
       unsigned int idx = 0;
 
-      if (const unsigned int sv = orders.vertexDofs_; sv > 0) {
+      // vertex functions
+      if (const unsigned int sv = orders.size(dim); sv > 0) {
         for (; idx < sv; ++idx)
           out[idx] = f(refElem.position(idx,dim));
       }
 
-      std::vector<JacobianType> shapeGradients;
+      auto subEntityInterpolate = [&](auto codim) {
+        // traverse all subEntities
+        for (int i = 0; i < refElem.size(codim); ++i) {
+          // make the subEntity projection for (f - fh_v)
+          if (const unsigned int se = orders.size(i,codim); se > 0) {
+            DynamicMatrix<R> A(se,se, 0.0);
+            DynamicVector<R> b(se, 0.0);
+            auto localRefElem = refElem.template geometry<codim>(i);
+            for (auto const& qp : QuadratureRules<D,dim-codim>::rule(refElem.type(i,codim), 2*orders.max()))
+            {
+              auto&& local = localRefElem.global(qp.position());
+              localBasis_.evaluateFunction(local, shapeValues);
+              auto fAtQP = f(local);
 
-      if constexpr(dim > 1) {
-        // 1. make the edge projction for (f - fh_v)
-        if (const unsigned int se = orders.edgeDofs_; se > 0) {
-          DUNE_THROW(NotImplemented, "Interpolation of edges is not yet implemented!");
-        }
-      }
+              // sum up over all computed coefficients
+              RangeType fhAtQP = 0;
+              for (unsigned int k = 0; k < idx; ++k)
+                fhAtQP.axpy(out[k], shapeValues[k]);
 
-      if constexpr(dim > 2) {
-        // 2. make the face projection for (f - fh_v - sum_j fh_ej)
-        if (const unsigned int sf = orders.faceDofs_; sf > 0) {
-          DUNE_THROW(NotImplemented, "Interpolation of faces is not yet implemented!");
-        }
-      }
-
-      // construct a bubble interpolant by minimization of a local H1 seminorm
-      if (const unsigned int sb = orders.cellDofs_; sb > 0) {
-        DynamicMatrix<R> A(sb,sb, 0.0);
-        DynamicVector<R> b(sb, 0.0);
-        for (auto const& qp : QuadratureRules<D,dim>::rule(refElem.type(), 2*orders.max()))
-        {
-          localBasis_.evaluateJacobian(qp.position(), shapeGradients);
-          auto dfAtQP = df(qp.position());
-
-          // sum up over all computed coefficients
-          JacobianType dfhAtQP = 0;
-          for (unsigned int k = 0; k < idx; ++k)
-            dfhAtQP.axpy(out[k], shapeGradients[k]);
-
-          // assemble projection system on reference element
-          for (unsigned int l1 = 0; l1 < sb; ++l1) {
-            for (unsigned int l2 = 0; l2 < sb; ++l2) {
-              A[l1][l2] += inner(shapeGradients[idx+l1],shapeGradients[idx+l2]) * qp.weight();
+              // assemble projection system on reference element
+              for (unsigned int l1 = 0; l1 < se; ++l1) {
+                for (unsigned int l2 = 0; l2 < se; ++l2) {
+                  A[l1][l2] += inner(shapeValues[idx+l1],shapeValues[idx+l2]) * qp.weight();
+                }
+                b[l1] += inner(difference(fAtQP, fhAtQP), shapeValues[idx+l1]) * qp.weight();
+              }
             }
-            b[l1] += inner(difference(dfAtQP, dfhAtQP), shapeGradients[idx+l1]) * qp.weight();
+
+            DynamicVector<R> coeff(se);
+            A.solve(coeff, b);
+
+            for (unsigned int i = 0; i < se; ++i)
+              out[idx++] = coeff[i];
           }
         }
+      };
 
-        DynamicVector<R> coeff(sb);
-        A.solve(coeff, b);
-
-        for (unsigned int i = 0; i < sb; ++i)
-          out[idx++] = coeff[i];
+      // edge interpolation
+      if constexpr(dim > 1) {
+        subEntityInterpolate(std::integral_constant<int,dim-1>{});
       }
+
+      // face interpolation
+      if constexpr(dim > 2) {
+        subEntityInterpolate(std::integral_constant<int,dim-2>{});
+      }
+
+      // interior interpolation
+      subEntityInterpolate(std::integral_constant<int,0>{});
     }
   };
 

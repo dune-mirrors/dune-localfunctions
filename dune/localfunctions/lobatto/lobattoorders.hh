@@ -15,6 +15,8 @@ namespace Dune
   class LobattoOrders<1>
   {
   public:
+    static const int dim = 1;
+
     std::array<unsigned int, 1> pb_;
     unsigned int maxP_;
     unsigned int vertexDofs_, cellDofs_;
@@ -31,11 +33,6 @@ namespace Dune
       maxP_ = *std::max_element(pb_.begin(), pb_.end());
       vertexDofs_ = size(dim);
       cellDofs_ = size(0);
-    }
-
-    unsigned int size () const
-    {
-      return vertexDofs_ + cellDofs_;
     }
 
     unsigned int max () const
@@ -77,6 +74,9 @@ namespace Dune
           return std::max(0,int(cell(i))-1);
         case 1:
           return 1;
+        default:
+          assert(false && "Unsupported codimension!");
+          std::abort();
       }
     }
   };
@@ -85,6 +85,8 @@ namespace Dune
   class LobattoOrders<2>
   {
   public:
+    static const int dim = 2;
+
     std::array<unsigned int, 2> pb_;
     std::array<unsigned int, 4> pe_;
     unsigned int maxP_;
@@ -168,6 +170,8 @@ namespace Dune
   class LobattoOrders<3>
   {
   public:
+    static const int dim = 3;
+
     std::array<unsigned int, 3> pb_;
     std::array<unsigned int, 12> pf_;
     std::array<unsigned int, 12> pe_;
