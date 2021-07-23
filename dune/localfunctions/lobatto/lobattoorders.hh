@@ -22,7 +22,7 @@ namespace Dune
     unsigned int vertexDofs_, cellDofs_;
 
     // p = polynomial degree
-    LobattoOrders (unsigned int p)
+    LobattoOrders (unsigned int p = 1)
       : LobattoOrders(std::array{p})
     {}
 
@@ -49,7 +49,7 @@ namespace Dune
     unsigned int size () const
     {
       unsigned int s = 0;
-      for (unsigned int c = 0; c <= dim; ++c)
+      for (int c = 0; c <= dim; ++c)
         s += size(c);
       return s;
     }
@@ -60,7 +60,7 @@ namespace Dune
       auto refElem = referenceElement<double,dim>(GeometryTypes::cube(dim));
 
       unsigned int s = 0;
-      for (unsigned int i = 0; i < refElem.size(c); ++i)
+      for (int i = 0; i < refElem.size(c); ++i)
         s += size(i,c);
       return s;
     }
@@ -94,7 +94,7 @@ namespace Dune
 
     // p = polynomial degree of element bubble functions
     // q = polynomial degree of edge functions
-    LobattoOrders (unsigned int p, unsigned int q = 1)
+    LobattoOrders (unsigned int p = 1, unsigned int q = 1)
       : LobattoOrders(std::array{p,p}, std::array{q,q,q,q})
     {}
 
@@ -132,7 +132,7 @@ namespace Dune
     unsigned int size () const
     {
       unsigned int s = 0;
-      for (unsigned int c = 0; c <= dim; ++c)
+      for (int c = 0; c <= dim; ++c)
         s += size(c);
       return s;
     }
@@ -143,7 +143,7 @@ namespace Dune
       auto refElem = referenceElement<double,dim>(GeometryTypes::cube(dim));
 
       unsigned int s = 0;
-      for (unsigned int i = 0; i < refElem.size(c); ++i)
+      for (int i = 0; i < refElem.size(c); ++i)
         s += size(i,c);
       return s;
     }
@@ -181,7 +181,7 @@ namespace Dune
     // pb = polynomial degree of element bubble functions
     // pf = polynomial degree of face functions
     // pe = polynomial degree of edge functions
-    LobattoOrders (unsigned int pb, unsigned int pf = 1, unsigned int pe = 1)
+    LobattoOrders (unsigned int pb = 1, unsigned int pf = 1, unsigned int pe = 1)
       : LobattoOrders(filledArray<3>(pb), filledArray<12>(pf), filledArray<12>(pe))
     {}
 
@@ -233,7 +233,7 @@ namespace Dune
     unsigned int size () const
     {
       unsigned int s = 0;
-      for (unsigned int c = 0; c <= dim; ++c)
+      for (int c = 0; c <= dim; ++c)
         s += size(c);
       return s;
     }
@@ -244,7 +244,7 @@ namespace Dune
       auto refElem = referenceElement<double,dim>(GeometryTypes::cube(dim));
 
       unsigned int s = 0;
-      for (unsigned int i = 0; i < refElem.size(c); ++i)
+      for (int i = 0; i < refElem.size(c); ++i)
         s += size(i,c);
       return s;
     }
