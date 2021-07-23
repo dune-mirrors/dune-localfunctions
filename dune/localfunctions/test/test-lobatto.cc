@@ -110,7 +110,7 @@ int main (int argc, char **argv)
 
   char disableFlags = DisableEvaluate; // + DisableVirtualInterface;
 
-  int maxOrder = 6;
+  unsigned int maxOrder = 6;
 
   std::cout << " 1d " << std::endl;
   Dune::LobattoLocalFiniteElement<double,double,1> lobattoCube1d_p1{1};

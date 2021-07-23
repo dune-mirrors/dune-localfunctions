@@ -533,6 +533,7 @@ namespace Dune { namespace Impl
 
       auto subEntityInterpolate = [&](auto codim) {
         // traverse all subEntities
+        unsigned int shift = 0;
         for (int i = 0; i < refElem.size(codim); ++i) {
           // make the subEntity projection for (f - fh_v)
           if (const unsigned int se = orders.size(i,codim); se > 0) {
@@ -553,19 +554,20 @@ namespace Dune { namespace Impl
               // assemble projection system on reference element
               for (unsigned int l1 = 0; l1 < se; ++l1) {
                 for (unsigned int l2 = 0; l2 < se; ++l2) {
-                  A[l1][l2] += inner(shapeValues[idx+l1],shapeValues[idx+l2]) * qp.weight();
+                  A[l1][l2] += inner(shapeValues[idx+shift+l1],shapeValues[idx+shift+l2]) * qp.weight();
                 }
-                b[l1] += inner(difference(fAtQP, fhAtQP), shapeValues[idx+l1]) * qp.weight();
+                b[l1] += inner(difference(fAtQP, fhAtQP), shapeValues[idx+shift+l1]) * qp.weight();
               }
             }
 
             DynamicVector<R> coeff(se);
             A.solve(coeff, b);
 
-            for (unsigned int i = 0; i < se; ++i)
-              out[idx++] = coeff[i];
+            for (unsigned int i = 0; i < se; ++i,++shift)
+              out[idx+shift] = coeff[i];
           }
         }
+        idx += shift;
       };
 
       // edge interpolation
