@@ -110,26 +110,26 @@ int main (int argc, char **argv)
 
   char disableFlags = DisableEvaluate; // + DisableVirtualInterface;
 
-  unsigned int maxOrder = 6;
+  std::uint8_t maxOrder = 6;
 
   std::cout << " 1d " << std::endl;
-  Dune::LobattoLocalFiniteElement<double,double,1> lobattoCube1d_p1{1};
+  Dune::LobattoCubeLocalFiniteElement<double,double,1> lobattoCube1d_p1{1};
   testSuite.check(testFE(lobattoCube1d_p1, disableFlags), "lobattoCube1d_p1");
 
-  for (unsigned int pb = 1; pb < maxOrder; ++pb) {
-    Dune::LobattoLocalFiniteElement<double,double,1> lobattoCube1d_pn(LobattoOrders<1>{pb});
+  for (std::uint8_t pb = 1; pb < maxOrder; ++pb) {
+    Dune::LobattoCubeLocalFiniteElement<double,double,1> lobattoCube1d_pn(LobattoOrders<1>{pb});
     testSuite.check(testFE(lobattoCube1d_pn, disableFlags),
       "lobattoCube1d_p" + std::to_string(pb));
   }
 
 
   std::cout << " 2d " << std::endl;
-  Dune::LobattoLocalFiniteElement<double,double,2> lobattoCube2d_p1{1};
+  Dune::LobattoCubeLocalFiniteElement<double,double,2> lobattoCube2d_p1{1};
   testSuite.check(testFE(lobattoCube2d_p1, disableFlags), "lobattoCube2d_p1");
 
-  for (unsigned int pb = 1; pb < maxOrder-1; ++pb) {
-    for (unsigned int pe = 1; pe <= pb; ++pe) {
-      Dune::LobattoLocalFiniteElement<double,double,2> lobattoCube2d_pn(LobattoOrders<2>{pb,pe});
+  for (std::uint8_t pb = 1; pb < maxOrder-1; ++pb) {
+    for (std::uint8_t pe = 1; pe <= pb; ++pe) {
+      Dune::LobattoCubeLocalFiniteElement<double,double,2> lobattoCube2d_pn(LobattoOrders<2>{pb,pe});
       testSuite.check(testFE(lobattoCube2d_pn, disableFlags),
         "lobattoCube2d_p" + std::to_string(pb) + std::to_string(pe));
     }
@@ -137,18 +137,22 @@ int main (int argc, char **argv)
 
 
   std::cout << " 3d " << std::endl;
-  Dune::LobattoLocalFiniteElement<double,double,3> lobattoCube3d_p1{1};
+  Dune::LobattoCubeLocalFiniteElement<double,double,3> lobattoCube3d_p1{1};
   testSuite.check(testFE(lobattoCube3d_p1, disableFlags), "lobattoCube3d_p1");
 
-  for (unsigned int pb = 1; pb < maxOrder-2; ++pb) {
-    for (unsigned int pf = 1; pf <= pb; ++pf) {
-      for (unsigned int pe = 1; pe <= pf; ++pe) {
-        Dune::LobattoLocalFiniteElement<double,double,3> lobattoCube3d_pn(LobattoOrders<3>{pb,pf,pe});
+  for (std::uint8_t pb = 1; pb < maxOrder-2; ++pb) {
+    for (std::uint8_t pf = 1; pf <= pb; ++pf) {
+      for (std::uint8_t pe = 1; pe <= pf; ++pe) {
+        Dune::LobattoCubeLocalFiniteElement<double,double,3> lobattoCube3d_pn(LobattoOrders<3>{pb,pf,pe});
         testSuite.check(testFE(lobattoCube3d_pn, disableFlags),
           "lobattoCube3d_p" + std::to_string(pb) + std::to_string(pf) + std::to_string(pe));
       }
     }
   }
+
+  // TODO: Test that edge functions are 0 on all other edges
+  // TODO: Test that face functions are 0 on all other faces
+  // TODO: Test that bubble functions are zero on all faces
 
   return testSuite.exit();
 }

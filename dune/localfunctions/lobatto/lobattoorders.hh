@@ -8,56 +8,53 @@
 
 namespace Dune
 {
-  template<unsigned int dim>
+  template <unsigned int dim>
   class LobattoOrders;
 
   template<>
   class LobattoOrders<1>
   {
-  public:
     static const int dim = 1;
 
-    std::array<unsigned int, 1> pb_;
-    unsigned int maxP_;
-    unsigned int vertexDofs_, cellDofs_;
+  public:
+    std::array<std::uint8_t, 1> pb_;
+
+    LobattoOrders () = default;
 
     // p = polynomial degree
-    LobattoOrders (unsigned int p = 1)
+    LobattoOrders (std::uint8_t p = 1)
       : LobattoOrders(std::array{p})
     {}
 
     // pb = polynomial degree of element bubble functions
-    LobattoOrders (std::array<unsigned int, 1> const& pb)
+    LobattoOrders (std::array<std::uint8_t, 1> const& pb)
       : pb_{pb}
-    {
-      maxP_ = *std::max_element(pb_.begin(), pb_.end());
-      vertexDofs_ = size(dim);
-      cellDofs_ = size(0);
-    }
+    {}
 
     unsigned int max () const
     {
-      return maxP_;
+      return pb_[0];
     }
 
     unsigned int cell (unsigned int k) const
     {
+      assert(k == 0);
       return pb_[k];
     }
 
     //! Total number of DOFs
-    unsigned int size () const
+    unsigned int size (GeometryType type) const
     {
       unsigned int s = 0;
       for (int c = 0; c <= dim; ++c)
-        s += size(c);
+        s += size(type,c);
       return s;
     }
 
     //! Number of DOFs associated to all entities of codim c
-    unsigned int size (int c) const
+    unsigned int size (GeometryType type, int c) const
     {
-      auto refElem = referenceElement<double,dim>(GeometryTypes::cube(dim));
+      auto refElem = referenceElement<double,dim>(type);
 
       unsigned int s = 0;
       for (int i = 0; i < refElem.size(c); ++i)
@@ -84,33 +81,34 @@ namespace Dune
   template<>
   class LobattoOrders<2>
   {
-  public:
     static const int dim = 2;
 
-    std::array<unsigned int, 2> pb_;
-    std::array<unsigned int, 4> pe_;
-    unsigned int maxP_;
-    unsigned int vertexDofs_,edgeDofs_,cellDofs_;
+  public:
+    std::array<std::uint8_t, 2> pb_;
+    std::array<std::uint8_t, 4> pe_;
+    std::uint8_t maxP_ = 0;
+
+    LobattoOrders () = default;
+
+    LobattoOrders (std::uint8_t p = 1)
+      : LobattoOrders(p,p)
+    {}
 
     // p = polynomial degree of element bubble functions
     // q = polynomial degree of edge functions
-    LobattoOrders (unsigned int p = 1, unsigned int q = 1)
+    LobattoOrders (std::uint8_t p, std::uint8_t q)
       : LobattoOrders(std::array{p,p}, std::array{q,q,q,q})
     {}
 
     // pb = polynomial degree of element bubble functions
     // pe = polynomial degree of edge functions
-    LobattoOrders (std::array<unsigned int, 2> const& pb,
-                   std::array<unsigned int, 4> const& pe)
+    LobattoOrders (std::array<std::uint8_t, 2> const& pb,
+                   std::array<std::uint8_t, 4> const& pe)
       : pb_{pb}
       , pe_{pe}
     {
       maxP_ = *std::max_element(pb_.begin(), pb_.end());
       maxP_ = std::max(maxP_, *std::max_element(pe_.begin(), pe_.end()));
-
-      vertexDofs_ = size(dim);
-      edgeDofs_ = size(dim-1);
-      cellDofs_ = size(0);
     }
 
     unsigned int max () const
@@ -129,18 +127,18 @@ namespace Dune
     }
 
     //! Total number of DOFs
-    unsigned int size () const
+    unsigned int size (GeometryType type) const
     {
       unsigned int s = 0;
       for (int c = 0; c <= dim; ++c)
-        s += size(c);
+        s += size(type, c);
       return s;
     }
 
     //! Number of DOFs associated to all entities of codim c
-    unsigned int size (int c) const
+    unsigned int size (GeometryType type, int c) const
     {
-      auto refElem = referenceElement<double,dim>(GeometryTypes::cube(dim));
+      auto refElem = referenceElement<double,dim>(type);
 
       unsigned int s = 0;
       for (int i = 0; i < refElem.size(c); ++i)
@@ -164,33 +162,45 @@ namespace Dune
           std::abort();
       }
     }
+
+    friend std::ostream& operator<< (std::ostream& out, LobattoOrders const& orders)
+    {
+      out << "pb=[" << int(orders.pb_[0]) << ", " << int(orders.pb_[1]) << "], "
+            "pe=[" << int(orders.pe_[0]) << ", " << int(orders.pe_[1]) << ", " << int(orders.pe_[2]) << ", " << int(orders.pe_[3]) << "], "
+            "maxP=" << int(orders.maxP_);
+      return out;
+    }
   };
 
   template<>
   class LobattoOrders<3>
   {
-  public:
     static const int dim = 3;
 
-    std::array<unsigned int, 3> pb_;
-    std::array<unsigned int, 12> pf_;
-    std::array<unsigned int, 12> pe_;
-    unsigned int maxP_;
-    unsigned int vertexDofs_,edgeDofs_,faceDofs_,cellDofs_;
+  public:
+    std::array<std::uint8_t, 3> pb_;
+    std::array<std::uint8_t, 12> pf_;
+    std::array<std::uint8_t, 12> pe_;
+    std::uint8_t maxP_ = 0;
 
+    LobattoOrders () = default;
+
+    LobattoOrders (std::uint8_t p = 1)
+      : LobattoOrders(p,p,p)
+    {}
     // pb = polynomial degree of element bubble functions
     // pf = polynomial degree of face functions
     // pe = polynomial degree of edge functions
-    LobattoOrders (unsigned int pb = 1, unsigned int pf = 1, unsigned int pe = 1)
+    LobattoOrders ( std::uint8_t pb, std::uint8_t pf, std::uint8_t pe)
       : LobattoOrders(filledArray<3>(pb), filledArray<12>(pf), filledArray<12>(pe))
     {}
 
     // pb = polynomial degree of element bubble functions
     // pf = polynomial degree of face functions
     // pe = polynomial degree of edge functions
-    LobattoOrders (std::array<unsigned int, 3> const& pb,
-                   std::array<unsigned int, 12> const& pf,
-                   std::array<unsigned int, 12> const& pe)
+    LobattoOrders (std::array<std::uint8_t, 3> const& pb,
+                   std::array<std::uint8_t, 12> const& pf,
+                   std::array<std::uint8_t, 12> const& pe)
       : pb_{pb}
       , pf_{pf}
       , pe_{pe}
@@ -198,11 +208,6 @@ namespace Dune
       maxP_ = *std::max_element(pb_.begin(), pb_.end());
       maxP_ = std::max(maxP_, *std::max_element(pf_.begin(), pf_.end()));
       maxP_ = std::max(maxP_, *std::max_element(pe_.begin(), pe_.end()));
-
-      vertexDofs_ = size(dim);
-      edgeDofs_ = size(dim-1);
-      faceDofs_ = size(dim-2);
-      cellDofs_ = size(0);
     }
 
     // maximal polynomial order
@@ -230,18 +235,18 @@ namespace Dune
     }
 
     //! Total number of DOFs
-    unsigned int size () const
+    unsigned int size (GeometryType type) const
     {
       unsigned int s = 0;
       for (int c = 0; c <= dim; ++c)
-        s += size(c);
+        s += size(type,c);
       return s;
     }
 
     //! Number of DOFs associated to all entities of codim c
-    unsigned int size (int c) const
+    unsigned int size (GeometryType type, int c) const
     {
-      auto refElem = referenceElement<double,dim>(GeometryTypes::cube(dim));
+      auto refElem = referenceElement<double,dim>(type);
 
       unsigned int s = 0;
       for (int i = 0; i < refElem.size(c); ++i)
@@ -266,6 +271,64 @@ namespace Dune
           assert(false && "Unsupported codimension!");
           std::abort();
       }
+    }
+
+    friend std::ostream& operator<< (std::ostream& out, LobattoOrders const& orders)
+    {
+      out << "pb=[" << int(orders.pb_[0]) << ", " << int(orders.pb_[1]) << ", " << int(orders.pb_[2]) << "], "
+            "pf=[" << int(orders.pf_[0]) << ", " << int(orders.pf_[1]) << ", " << int(orders.pf_[2]) << ", " << int(orders.pf_[3]) << ", " << int(orders.pf_[4]) << ", " << int(orders.pf_[5]) << ", " << int(orders.pf_[6]) << ", " << int(orders.pf_[7]) << ", " << int(orders.pf_[8]) << ", " << int(orders.pf_[9]) << ", " << int(orders.pf_[10]) << ", " << int(orders.pf_[11]) << "], "
+            "pe=[" << int(orders.pe_[0]) << ", " << int(orders.pe_[1]) << ", " << int(orders.pe_[2]) << ", " << int(orders.pe_[3]) << ", " << int(orders.pe_[4]) << ", " << int(orders.pe_[5]) << ", " << int(orders.pe_[6]) << ", " << int(orders.pe_[7]) << ", " << int(orders.pe_[8]) << ", " << int(orders.pe_[9]) << ", " << int(orders.pe_[10]) << ", " << int(orders.pe_[11]) << "], "
+            "maxP=" << int(orders.maxP_);
+      return out;
+    }
+  };
+
+
+  template <unsigned int dim>
+  class LobattoHomogeneousOrders
+  {
+  public:
+    unsigned int p_ = 0;
+
+    LobattoHomogeneousOrders () = default;
+
+    // p = polynomial degree
+    LobattoHomogeneousOrders (unsigned int p = 1)
+      : p_{p}
+    {}
+
+    // maximal polynomial order
+    unsigned int max () const
+    {
+      return p_;
+    }
+
+    unsigned int cell (unsigned int /*k*/) const { return p_; }
+    unsigned int face (unsigned int /*k*/) const { return p_; }
+    unsigned int edge (unsigned int /*k*/) const { return p_; }
+
+    //! Total number of DOFs
+    unsigned int size (GeometryType type) const
+    {
+      unsigned int s = 0;
+      for (int c = 0; c <= dim; ++c)
+        s += size(type, c);
+      return s;
+    }
+
+    //! Number of DOFs associated to all entities of codim c
+    unsigned int size (GeometryType type, int c) const
+    {
+      assert(dim >= c);
+      auto refElem = referenceElement<double,dim>(type);
+      return refElem.size(c) * power(std::max(0,int(p_)-1), dim-c);
+    }
+
+    //! Number of DOFs associated to the i'th entity of codim c
+    unsigned int size (unsigned int i, int c) const
+    {
+      assert(dim >= c);
+      return power(std::max(0,int(p_)-1), dim-c);
     }
   };
 

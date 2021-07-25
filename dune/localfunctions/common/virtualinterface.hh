@@ -167,27 +167,27 @@ namespace Dune
       template<class F>
       FunctionType (const F& ff)
         : evaluateFunction(Impl::makeFunctionWithCallOperator<DomainType>(ff))
-        , evaluateJacobian(Impl::makeDerivative<DomainType>(ff))
+        // , evaluateJacobian(Impl::makeDerivative<DomainType>(ff))
       {}
 
-      template<class F, class DF>
-      FunctionType (const F& ff, const DF& dff)
-        : evaluateFunction(Impl::makeFunctionWithCallOperator<DomainType>(ff))
-        , evaluateJacobian(Impl::makeFunctionWithCallOperator<DomainType>(dff))
-      {}
+      // template<class F, class DF>
+      // FunctionType (const F& ff, const DF& dff)
+      //   : evaluateFunction(Impl::makeFunctionWithCallOperator<DomainType>(ff))
+      //   , evaluateJacobian(Impl::makeFunctionWithCallOperator<DomainType>(dff))
+      // {}
 
       RangeType operator() (const DomainType& x) const
       {
         return evaluateFunction(x);
       }
 
-      JacobianType derivative (const DomainType& x) const
-      {
-        return evaluateJacobian(x);
-      }
+      // JacobianType derivative (const DomainType& x) const
+      // {
+      //   return evaluateJacobian(x);
+      // }
 
       std::function<RangeType(DomainType)> evaluateFunction;
-      std::function<JacobianType(DomainType)> evaluateJacobian;
+      // std::function<JacobianType(DomainType)> evaluateJacobian;
     };
 
     //! type of the coefficient vector in the interpolate method

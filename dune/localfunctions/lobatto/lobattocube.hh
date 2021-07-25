@@ -30,36 +30,36 @@ namespace Dune { namespace Impl
 {
   // Forward declaration
   template<class LocalBasis>
-  class LobattoLocalInterpolation;
+  class LobattoCubeLocalInterpolation;
 
    /** \brief Lobatto shape functions of arbitrary order on the reference line [0,1]
 
      \tparam D Type to represent the field in the domain
      \tparam R Type to represent the field in the range
      \tparam dim Dimension of the domain cube
-     \tparam k Polynomial order
+     \tparam Orders Type encoding the polynomial orders of the shape functions
    */
-  template<class D, class R, unsigned int dim>
-  class LobattoLocalBasis
+  template<class D, class R, unsigned int dim, class Orders>
+  class LobattoCubeLocalBasis
   {
-    friend class LobattoLocalInterpolation<LobattoLocalBasis<D,R,dim> >;
+    friend class LobattoCubeLocalInterpolation<LobattoCubeLocalBasis<D,R,dim,Orders> >;
 
-    LobattoOrders<dim> orders_;
+    Orders orders_;
     Lobatto<R,D> lobatto_{};
 
   public:
     using Traits = LocalBasisTraits<D,dim,FieldVector<D,dim>,R,1,FieldVector<R,1>,FieldMatrix<R,1,dim> >;
 
     // p = polynomial degree
-    LobattoLocalBasis (LobattoOrders<dim> orders)
-      : orders_(std::move(orders))
+    LobattoCubeLocalBasis (const Orders& orders)
+      : orders_(orders)
     {}
 
     /** \brief Number of shape functions
      */
     unsigned int size () const
     {
-      return orders_.size();
+      return orders_.size(GeometryTypes::cube(dim));
     }
 
     //! \brief Evaluate all shape functions
@@ -411,17 +411,17 @@ namespace Dune { namespace Impl
    *
    * \tparam dim Dimension of the reference cube
    */
-  template<unsigned int dim>
-  class LobattoLocalCoefficients
+  template<unsigned int dim, class Orders>
+  class LobattoCubeLocalCoefficients
   {
-    LobattoOrders<dim> orders_;
+    Orders orders_;
     std::vector<LocalKey> localKeys_;
 
   public:
     //! \brief Default constructor
-    LobattoLocalCoefficients (LobattoOrders<dim> orders)
-      : orders_(std::move(orders))
-      , localKeys_(orders_.size())
+    LobattoCubeLocalCoefficients (const Orders& orders)
+      : orders_(orders)
+      , localKeys_(orders_.size(GeometryTypes::cube(dim)))
     {
       if constexpr(dim == 1) {
         // vertex functions
@@ -476,7 +476,7 @@ namespace Dune { namespace Impl
     //! number of coefficients
     unsigned int size () const
     {
-      return orders_.size();
+      return orders_.size(GeometryTypes::cube(dim));
     }
 
     //! get i-th LocalKey
@@ -491,12 +491,12 @@ namespace Dune { namespace Impl
    * \tparam LocalBasis The corresponding set of shape functions
    */
   template<class LocalBasis>
-  class LobattoLocalInterpolation
+  class LobattoCubeLocalInterpolation
   {
     LocalBasis localBasis_;
 
   public:
-    LobattoLocalInterpolation (LocalBasis const& localBasis)
+    LobattoCubeLocalInterpolation (LocalBasis const& localBasis)
       : localBasis_(localBasis)
     {}
 
@@ -519,14 +519,14 @@ namespace Dune { namespace Impl
       std::vector<RangeType> shapeValues;
 
       auto refElem = referenceElement<D,dim>(GeometryTypes::cube(dim));
-      LobattoOrders<dim> const& orders = localBasis_.orders_;
+      auto const& orders = localBasis_.orders_;
 
       auto&& f = Impl::makeFunctionWithCallOperator<typename LocalBasis::Traits::DomainType>(ff);
 
       unsigned int idx = 0;
 
       // vertex functions
-      if (const unsigned int sv = orders.size(dim); sv > 0) {
+      if (const unsigned int sv = orders.size(refElem.type(), dim); sv > 0) {
         for (; idx < sv; ++idx)
           out[idx] = f(refElem.position(idx,dim));
       }
@@ -594,31 +594,28 @@ namespace Dune
    * \tparam D Type used for domain coordinates
    * \tparam R Type used for function values
    * \tparam dim dimension of the reference element
+   * \tparam Orders Type encoding the polynomial orders of the shape functions on the entities.
    */
-  template<class D, class R, int dim>
-  class LobattoLocalFiniteElement
+  template<class D, class R, int dim, class Orders = LobattoOrders<dim>>
+  class LobattoCubeLocalFiniteElement
   {
-    using LB = Impl::LobattoLocalBasis<D,R,dim>;
-    using LC = Impl::LobattoLocalCoefficients<dim>;
-    using LI = Impl::LobattoLocalInterpolation<LB>;
+    using LB = Impl::LobattoCubeLocalBasis<D,R,dim,Orders>;
+    using LC = Impl::LobattoCubeLocalCoefficients<dim,Orders>;
+    using LI = Impl::LobattoCubeLocalInterpolation<LB>;
 
   public:
     /** \brief Export number types, dimensions, etc.
      */
     using Traits = LocalFiniteElementTraits<LB, LC, LI>;
 
-    LobattoLocalFiniteElement (const LobattoOrders<dim>& orders)
+    LobattoCubeLocalFiniteElement (const Orders& orders)
       : basis_(orders)
       , coefficients_(orders)
       , interpolation_(basis_)
     {}
 
-    LobattoLocalFiniteElement (unsigned int p)
-      : LobattoLocalFiniteElement(LobattoOrders<dim>{p})
-    {}
-
-    LobattoLocalFiniteElement ()
-      : LobattoLocalFiniteElement(1u)
+    LobattoCubeLocalFiniteElement (std::uint8_t p = 1)
+      : LobattoCubeLocalFiniteElement(Orders{p})
     {}
 
     /** \brief Returns the local basis, i.e., the set of shape functions
