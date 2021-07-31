@@ -5,9 +5,39 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
+#include <iostream>
+
+#include <dune/geometry/referenceelement.hh>
+#include <dune/geometry/type.hh>
 
 namespace Dune
 {
+  namespace Debug
+  {
+    template <std::size_t n>
+    std::ostream& operator<< (std::ostream& out, std::array<std::uint8_t,n> const& p)
+    {
+      out << "[" << int(p[0]);
+      for (std::size_t i = 1; i < n; ++i)
+        out << ", " << int(p[i]);
+      out << "]";
+      return out;
+    }
+
+    template <std::size_t n>
+    std::ostream& operator<< (std::ostream& out, std::array<std::array<std::uint8_t,2>,n> const& p)
+    {
+      out << "[" << p[0];
+      for (std::size_t i = 1; i < n; ++i)
+        out << ", " << p[i];
+      out << "]";
+      return out;
+    }
+
+  } // end namespace Debug
+
+
   template <unsigned int dim>
   class LobattoOrders;
 
@@ -23,7 +53,7 @@ namespace Dune
 
     // p = polynomial degree
     LobattoOrders (std::uint8_t p = 1)
-      : LobattoOrders(std::array{p})
+      : LobattoOrders{std::array{p}}
     {}
 
     // pb = polynomial degree of element bubble functions
@@ -36,10 +66,11 @@ namespace Dune
       return pb_[0];
     }
 
-    unsigned int cell (unsigned int k) const
+    //! Return the polynomial order on the `k`th basis function on the `i`th entity pf codim `c`
+    unsigned int operator() (unsigned int i, int c, unsigned int k = 0) const
     {
-      assert(k == 0);
-      return pb_[k];
+      assert(i == 0); assert(c == 0); assert(k == 0);
+      return pb_[0];
     }
 
     //! Total number of DOFs
@@ -65,16 +96,10 @@ namespace Dune
     //! Number of DOFs associated to the i'th entity of codim c
     unsigned int size (unsigned int i, int c) const
     {
-      switch (c) {
-        case 0:
-          assert(i == 0);
-          return std::max(0,int(cell(i))-1);
-        case 1:
-          return 1;
-        default:
-          assert(false && "Unsupported codimension!");
-          std::abort();
-      }
+      unsigned int s = 1;
+      for (int k = 0; k < dim-c; ++k)
+        s *= std::max(0,int((*this)(i,c,k))-1);
+      return s;
     }
   };
 
@@ -91,13 +116,13 @@ namespace Dune
     LobattoOrders () = default;
 
     LobattoOrders (std::uint8_t p = 1)
-      : LobattoOrders(p,p)
+      : LobattoOrders{p,p}
     {}
 
     // p = polynomial degree of element bubble functions
     // q = polynomial degree of edge functions
     LobattoOrders (std::uint8_t p, std::uint8_t q)
-      : LobattoOrders(std::array{p,p}, std::array{q,q,q,q})
+      : LobattoOrders{std::array{p,p}, std::array{q,q,q,q}}
     {}
 
     // pb = polynomial degree of element bubble functions
@@ -107,8 +132,10 @@ namespace Dune
       : pb_{pb}
       , pe_{pe}
     {
-      maxP_ = *std::max_element(pb_.begin(), pb_.end());
-      maxP_ = std::max(maxP_, *std::max_element(pe_.begin(), pe_.end()));
+      maxP_ = std::accumulate(pb_.begin(), pb_.end(), 0u,
+        [](unsigned int m, unsigned int p) { return std::max(m, p); });
+      maxP_ = std::accumulate(pe_.begin(), pe_.end(), maxP_,
+        [](unsigned int m, unsigned int p) { return std::max(m, p); });
     }
 
     unsigned int max () const
@@ -116,14 +143,16 @@ namespace Dune
       return maxP_;
     }
 
-    unsigned int cell (unsigned int k) const
+    //! Return the polynomial order on the `k`th basis function on the `i`th entity pf codim `c`
+    unsigned int operator() (unsigned int i, int c, unsigned int k = 0) const
     {
-      return pb_[k];
-    }
-
-    unsigned int edge (unsigned int k) const
-    {
-      return pe_[k];
+      switch (c) {
+        case 0: return pb_[k];
+        case 1: return pe_[i];
+        default:
+          assert(false && "Unsupported codimension!");
+          std::abort();
+      }
     }
 
     //! Total number of DOFs
@@ -149,25 +178,16 @@ namespace Dune
     //! Number of DOFs associated to the i'th entity of codim c
     unsigned int size (unsigned int i, int c) const
     {
-      switch (c) {
-        case 0:
-          assert(i == 0);
-          return std::max(0,int(cell(0))-1)*std::max(0,int(cell(1))-1);
-        case 1:
-          return std::max(0,int(edge(i))-1);
-        case 2:
-          return 1;
-        default:
-          assert(false && "Unsupported codimension!");
-          std::abort();
-      }
+      unsigned int s = 1;
+      for (int k = 0; k < dim-c; ++k)
+        s *= std::max(0,int((*this)(i,c,k))-1);
+      return s;
     }
 
     friend std::ostream& operator<< (std::ostream& out, LobattoOrders const& orders)
     {
-      out << "pb=[" << int(orders.pb_[0]) << ", " << int(orders.pb_[1]) << "], "
-            "pe=[" << int(orders.pe_[0]) << ", " << int(orders.pe_[1]) << ", " << int(orders.pe_[2]) << ", " << int(orders.pe_[3]) << "], "
-            "maxP=" << int(orders.maxP_);
+      using namespace Debug;
+      out << "pb=" << orders.pb_ << ", pe=" << orders.pe_ << ", " << "maxP=" << int(orders.maxP_);
       return out;
     }
   };
@@ -177,61 +197,77 @@ namespace Dune
   {
     static const int dim = 3;
 
+    static auto expandArray (std::array<std::uint8_t,6> const& p)
+    {
+      std::array<std::array<std::uint8_t,2>, 6> a;
+      for (std::size_t i = 0; i < 6; ++i)
+        a[i] = std::array{p[i], p[i]};
+      return a;
+    }
+
   public:
     std::array<std::uint8_t, 3> pb_;
-    std::array<std::uint8_t, 12> pf_;
+    std::array<std::array<std::uint8_t,2>, 6> pf_;
     std::array<std::uint8_t, 12> pe_;
     std::uint8_t maxP_ = 0;
 
     LobattoOrders () = default;
 
     LobattoOrders (std::uint8_t p = 1)
-      : LobattoOrders(p,p,p)
+      : LobattoOrders{p,p,p}
     {}
     // pb = polynomial degree of element bubble functions
     // pf = polynomial degree of face functions
     // pe = polynomial degree of edge functions
-    LobattoOrders ( std::uint8_t pb, std::uint8_t pf, std::uint8_t pe)
-      : LobattoOrders(filledArray<3>(pb), filledArray<12>(pf), filledArray<12>(pe))
+    LobattoOrders (std::uint8_t pb, std::uint8_t pf, std::uint8_t pe)
+      : LobattoOrders{filledArray<3>(pb), filledArray<6>(std::array{pf,pf}), filledArray<12>(pe)}
     {}
 
     // pb = polynomial degree of element bubble functions
     // pf = polynomial degree of face functions
     // pe = polynomial degree of edge functions
-    LobattoOrders (std::array<std::uint8_t, 3> const& pb,
-                   std::array<std::uint8_t, 12> const& pf,
+    LobattoOrders (std::uint8_t pb,
+                   std::array<std::uint8_t, 6> const& pf,
                    std::array<std::uint8_t, 12> const& pe)
+      : LobattoOrders{filledArray<3>(pb), expandArray(pf), pe}
+    {}
+
+    // pb = polynomial degree of element bubble functions
+    // pf = polynomial degree of face functions
+    // pe = polynomial degree of edge functions
+    LobattoOrders (std::array<std::uint8_t, 3> const& pb,               // 3 orders per cell
+                   std::array<std::array<std::uint8_t,2>, 6> const& pf, // 2 orders per face
+                   std::array<std::uint8_t, 12> const& pe)              // 1 order per edge
       : pb_{pb}
       , pf_{pf}
       , pe_{pe}
     {
-      maxP_ = *std::max_element(pb_.begin(), pb_.end());
-      maxP_ = std::max(maxP_, *std::max_element(pf_.begin(), pf_.end()));
-      maxP_ = std::max(maxP_, *std::max_element(pe_.begin(), pe_.end()));
+      maxP_ = std::accumulate(pb_.begin(), pb_.end(), 0u,
+        [](unsigned int m, unsigned int p) { return std::max(m, p); });
+      maxP_ = std::accumulate(pf_.begin(), pf_.end(), maxP_,
+        [](unsigned int m, std::array<std::uint8_t,2> p) {
+          return std::max({m, (unsigned int)(p[0]), (unsigned int)(p[1])}); });
+      maxP_ = std::accumulate(pe_.begin(), pe_.end(), maxP_,
+        [](unsigned int m, unsigned int p) { return std::max(m, p); });
     }
 
-    // maximal polynomial order
+    //! Maximal polynomial order
     unsigned int max () const
     {
       return maxP_;
     }
 
-    // polynomial degree of basis functions on the cell, in direction k
-    unsigned int cell (unsigned int d) const
+    //! Return the polynomial order on the `k`th basis function on the `i`th entity pf codim `c`
+    unsigned int operator() (unsigned int i, int c, unsigned int k = 0) const
     {
-      return pb_[d];
-    }
-
-    // polynomial degree of basis functions on (k/2)'th face
-    unsigned int face (unsigned int k) const
-    {
-      return pf_[k];
-    }
-
-    // polynomial degree of basis functions on k'th edge
-    unsigned int edge (unsigned int k) const
-    {
-      return pe_[k];
+      switch (c) {
+        case 0: return pb_[k];
+        case 1: return pf_[i][k];
+        case 2: return pe_[i];
+        default:
+          assert(false && "Unsupported codimension!");
+          std::abort();
+      }
     }
 
     //! Total number of DOFs
@@ -257,28 +293,17 @@ namespace Dune
     //! Number of DOFs associated to the i'th entity of codim c
     unsigned int size (unsigned int i, int c) const
     {
-      switch (c) {
-        case 0:
-          assert(i == 0);
-          return std::max(0,int(cell(0))-1)*std::max(0,int(cell(1))-1)*std::max(0,int(cell(2))-1);
-        case 1:
-          return std::max(0,int(face(2*i))-1)*std::max(0,int(face(2*i+1))-1);
-        case 2:
-          return std::max(0,int(edge(i))-1);
-        case 3:
-          return 1;
-        default:
-          assert(false && "Unsupported codimension!");
-          std::abort();
-      }
+      unsigned int s = 1;
+      for (int k = 0; k < dim-c; ++k)
+        s *= std::max(0,int((*this)(i,c,k))-1);
+      return s;
     }
 
     friend std::ostream& operator<< (std::ostream& out, LobattoOrders const& orders)
     {
-      out << "pb=[" << int(orders.pb_[0]) << ", " << int(orders.pb_[1]) << ", " << int(orders.pb_[2]) << "], "
-            "pf=[" << int(orders.pf_[0]) << ", " << int(orders.pf_[1]) << ", " << int(orders.pf_[2]) << ", " << int(orders.pf_[3]) << ", " << int(orders.pf_[4]) << ", " << int(orders.pf_[5]) << ", " << int(orders.pf_[6]) << ", " << int(orders.pf_[7]) << ", " << int(orders.pf_[8]) << ", " << int(orders.pf_[9]) << ", " << int(orders.pf_[10]) << ", " << int(orders.pf_[11]) << "], "
-            "pe=[" << int(orders.pe_[0]) << ", " << int(orders.pe_[1]) << ", " << int(orders.pe_[2]) << ", " << int(orders.pe_[3]) << ", " << int(orders.pe_[4]) << ", " << int(orders.pe_[5]) << ", " << int(orders.pe_[6]) << ", " << int(orders.pe_[7]) << ", " << int(orders.pe_[8]) << ", " << int(orders.pe_[9]) << ", " << int(orders.pe_[10]) << ", " << int(orders.pe_[11]) << "], "
-            "maxP=" << int(orders.maxP_);
+      using namespace Debug;
+      out << "pb=" << orders.pb_ << ", pf=[" << orders.pf_ << ", pe=[" << orders.pe_ << ", "
+             "maxP=" << int(orders.maxP_);
       return out;
     }
   };
@@ -293,19 +318,21 @@ namespace Dune
     LobattoHomogeneousOrders () = default;
 
     // p = polynomial degree
-    LobattoHomogeneousOrders (unsigned int p = 1)
+    LobattoHomogeneousOrders (unsigned int p)
       : p_{p}
     {}
 
-    // maximal polynomial order
+    //! Maximal polynomial order
     unsigned int max () const
     {
       return p_;
     }
 
-    unsigned int cell (unsigned int /*k*/) const { return p_; }
-    unsigned int face (unsigned int /*k*/) const { return p_; }
-    unsigned int edge (unsigned int /*k*/) const { return p_; }
+    //! Return the polynomial order on the `k`th basis function on the `i`th entity pf codim `c`
+    unsigned int operator() (unsigned int /*i*/, int /*c*/, unsigned int /*k*/) const
+    {
+      return p_;
+    }
 
     //! Total number of DOFs
     unsigned int size (GeometryType type) const

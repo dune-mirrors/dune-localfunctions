@@ -25,6 +25,7 @@
 #include <dune/localfunctions/lobatto/common.hh>
 #include <dune/localfunctions/lobatto/lobatto.hh>
 #include <dune/localfunctions/lobatto/lobattoorders.hh>
+#include <dune/localfunctions/lobatto/orientation.hh>
 
 namespace Dune { namespace Impl
 {
@@ -46,13 +47,15 @@ namespace Dune { namespace Impl
 
     Orders orders_;
     Lobatto<R,D> lobatto_{};
+    Orientation<dim> o_{};
 
   public:
     using Traits = LocalBasisTraits<D,dim,FieldVector<D,dim>,R,1,FieldVector<R,1>,FieldMatrix<R,1,dim> >;
 
     // p = polynomial degree
-    LobattoCubeLocalBasis (const Orders& orders)
+    LobattoCubeLocalBasis (const Orders& orders, const Orientation<dim>& o)
       : orders_(orders)
+      , o_(o)
     {}
 
     /** \brief Number of shape functions
@@ -81,7 +84,7 @@ namespace Dune { namespace Impl
         out[1] = l[1][0];
 
         // interior bubble functions
-        for (unsigned int k = 2; k <= orders_.cell(0); ++k)
+        for (unsigned int k = 2; k <= orders_(0,0); ++k)
           out[k] = l[k][0];
       }
       else if constexpr(dim == 2) {
@@ -91,20 +94,25 @@ namespace Dune { namespace Impl
         out[2] = l[0][0] * l[1][1];
         out[3] = l[1][0] * l[1][1];
 
+        auto const edge_sign = [&](unsigned int k, int i)
+        {
+          return power(o_(i,1,0), k);
+        };
+
         // edge functions
         unsigned int i = 4;
-        for (unsigned int k = 2; k <= orders_.edge(0); ++k)
-          out[i++] = l[0][0] * l[k][1];
-        for (unsigned int k = 2; k <= orders_.edge(1); ++k)
-          out[i++] = l[1][0] * l[k][1];
-        for (unsigned int k = 2; k <= orders_.edge(2); ++k)
-          out[i++] = l[k][0] * l[0][1];
-        for (unsigned int k = 2; k <= orders_.edge(3); ++k)
-          out[i++] = l[k][0] * l[1][1];
+        for (unsigned int k = 2; k <= orders_(0,1); ++k)
+          out[i++] = edge_sign(k,0) * l[0][0] * l[k][1];
+        for (unsigned int k = 2; k <= orders_(1,1); ++k)
+          out[i++] = edge_sign(k,1) * l[1][0] * l[k][1];
+        for (unsigned int k = 2; k <= orders_(2,1); ++k)
+          out[i++] = edge_sign(k,2) * l[k][0] * l[0][1];
+        for (unsigned int k = 2; k <= orders_(3,1); ++k)
+          out[i++] = edge_sign(k,3) * l[k][0] * l[1][1];
 
         // interior bubble functions
-        for (unsigned int n1 = 2; n1 <= orders_.cell(0); ++n1)
-          for (unsigned int n2 = 2; n2 <= orders_.cell(1); ++n2)
+        for (unsigned int n1 = 2; n1 <= orders_(0,0,0); ++n1)
+          for (unsigned int n2 = 2; n2 <= orders_(0,0,1); ++n2)
             out[i++] = l[n1][0] * l[n2][1];
       }
       else if constexpr(dim == 3) {
@@ -118,57 +126,69 @@ namespace Dune { namespace Impl
         out[6] = l[0][0] * l[1][1] * l[1][2];
         out[7] = l[1][0] * l[1][1] * l[1][2];
 
+        auto const edge_sign = [&](unsigned int k, int i)
+        {
+          return power(o_(i,2,0), k);
+        };
+
         // edge functions
         unsigned int i = 8;
-        for (unsigned int k = 2; k <= orders_.edge(0); ++k)
-          out[i++] = l[0][0] * l[0][1] * l[k][2];
-        for (unsigned int k = 2; k <= orders_.edge(1); ++k)
-          out[i++] = l[1][0] * l[0][1] * l[k][2];
-        for (unsigned int k = 2; k <= orders_.edge(2); ++k)
-          out[i++] = l[0][0] * l[1][1] * l[k][2];
-        for (unsigned int k = 2; k <= orders_.edge(3); ++k)
-          out[i++] = l[1][0] * l[1][1] * l[k][2];
-        for (unsigned int k = 2; k <= orders_.edge(4); ++k)
-          out[i++] = l[0][0] * l[k][1] * l[0][2];
-        for (unsigned int k = 2; k <= orders_.edge(5); ++k)
-          out[i++] = l[1][0] * l[k][1] * l[0][2];
-        for (unsigned int k = 2; k <= orders_.edge(6); ++k)
-          out[i++] = l[k][0] * l[0][1] * l[0][2];
-        for (unsigned int k = 2; k <= orders_.edge(7); ++k)
-          out[i++] = l[k][0] * l[1][1] * l[0][2];
-        for (unsigned int k = 2; k <= orders_.edge(8); ++k)
-          out[i++] = l[0][0] * l[k][1] * l[1][2];
-        for (unsigned int k = 2; k <= orders_.edge(9); ++k)
-          out[i++] = l[1][0] * l[k][1] * l[1][2];
-        for (unsigned int k = 2; k <= orders_.edge(10); ++k)
-          out[i++] = l[k][0] * l[0][1] * l[1][2];
-        for (unsigned int k = 2; k <= orders_.edge(11); ++k)
-          out[i++] = l[k][0] * l[1][1] * l[1][2];
+        for (unsigned int k = 2; k <= orders_(0,2); ++k)
+          out[i++] = edge_sign(k,0) * l[0][0] * l[0][1] * l[k][2];
+        for (unsigned int k = 2; k <= orders_(1,2); ++k)
+          out[i++] = edge_sign(k,1) * l[1][0] * l[0][1] * l[k][2];
+        for (unsigned int k = 2; k <= orders_(2,2); ++k)
+          out[i++] = edge_sign(k,2) * l[0][0] * l[1][1] * l[k][2];
+        for (unsigned int k = 2; k <= orders_(3,2); ++k)
+          out[i++] = edge_sign(k,3) * l[1][0] * l[1][1] * l[k][2];
+        for (unsigned int k = 2; k <= orders_(4,2); ++k)
+          out[i++] = edge_sign(k,4) * l[0][0] * l[k][1] * l[0][2];
+        for (unsigned int k = 2; k <= orders_(5,2); ++k)
+          out[i++] = edge_sign(k,5) * l[1][0] * l[k][1] * l[0][2];
+        for (unsigned int k = 2; k <= orders_(6,2); ++k)
+          out[i++] = edge_sign(k,6) * l[k][0] * l[0][1] * l[0][2];
+        for (unsigned int k = 2; k <= orders_(7,2); ++k)
+          out[i++] = edge_sign(k,7) * l[k][0] * l[1][1] * l[0][2];
+        for (unsigned int k = 2; k <= orders_(8,2); ++k)
+          out[i++] = edge_sign(k,8) * l[0][0] * l[k][1] * l[1][2];
+        for (unsigned int k = 2; k <= orders_(9,2); ++k)
+          out[i++] = edge_sign(k,9) * l[1][0] * l[k][1] * l[1][2];
+        for (unsigned int k = 2; k <= orders_(10,2); ++k)
+          out[i++] = edge_sign(k,10) * l[k][0] * l[0][1] * l[1][2];
+        for (unsigned int k = 2; k <= orders_(11,2); ++k)
+          out[i++] = edge_sign(k,11) * l[k][0] * l[1][1] * l[1][2];
+
+        auto const face_sign = [&](unsigned int n1, unsigned int n2, int i)
+        {
+          const int o0 = o_(i,1,0);
+          const int o1 = o_(i,1,1);
+          return power(o0,n1) * power(o1,n2);
+        };
 
         // face functions
-        for (unsigned int n1 = 2; n1 <= orders_.face(0); ++n1)
-          for (unsigned int n2 = 2; n2 <= orders_.face(1); ++n2)
-            out[i++] = l[0][0] * l[n1][1] * l[n2][2];
-        for (unsigned int n1 = 2; n1 <= orders_.face(2); ++n1)
-          for (unsigned int n2 = 2; n2 <= orders_.face(3); ++n2)
-            out[i++] = l[1][0] * l[n1][1] * l[n2][2];
-        for (unsigned int n1 = 2; n1 <= orders_.face(4); ++n1)
-          for (unsigned int n2 = 2; n2 <= orders_.face(5); ++n2)
-            out[i++] = l[n1][0] * l[0][1] * l[n2][2];
-        for (unsigned int n1 = 2; n1 <= orders_.face(6); ++n1)
-          for (unsigned int n2 = 2; n2 <= orders_.face(7); ++n2)
-            out[i++] = l[n1][0] * l[1][1] * l[n2][2];
-        for (unsigned int n1 = 2; n1 <= orders_.face(8); ++n1)
-          for (unsigned int n2 = 2; n2 <= orders_.face(9); ++n2)
-            out[i++] = l[n1][0] * l[n2][1] * l[0][2];
-        for (unsigned int n1 = 2; n1 <= orders_.face(10); ++n1)
-          for (unsigned int n2 = 2; n2 <= orders_.face(11); ++n2)
-            out[i++] = l[n1][0] * l[n2][1] * l[1][2];
+        for (unsigned int n1 = 2; n1 <= orders_(0,1,0); ++n1)
+          for (unsigned int n2 = 2; n2 <= orders_(0,1,1); ++n2)
+            out[i++] = face_sign(n1,n2,0) * (o_(0,1,2) ? l[0][0] * l[n1][1] * l[n2][2] : l[0][0] * l[n2][1] * l[n1][2]);
+        for (unsigned int n1 = 2; n1 <= orders_(1,1,0); ++n1)
+          for (unsigned int n2 = 2; n2 <= orders_(1,1,1); ++n2)
+            out[i++] = face_sign(n1,n2,1) * (o_(1,1,2) ? l[1][0] * l[n1][1] * l[n2][2] : l[1][0] * l[n2][1] * l[n1][2]);
+        for (unsigned int n1 = 2; n1 <= orders_(2,1,0); ++n1)
+          for (unsigned int n2 = 2; n2 <= orders_(2,1,1); ++n2)
+            out[i++] = face_sign(n1,n2,2) * (o_(2,1,2) ? l[n1][0] * l[0][1] * l[n2][2] : l[1][0] * l[n2][1] * l[n1][2]);
+        for (unsigned int n1 = 2; n1 <= orders_(3,1,0); ++n1)
+          for (unsigned int n2 = 2; n2 <= orders_(3,1,1); ++n2)
+            out[i++] = face_sign(n1,n2,3) * (o_(3,1,2) ? l[n1][0] * l[1][1] * l[n2][2] : l[n2][0] * l[1][1] * l[n1][2]);
+        for (unsigned int n1 = 2; n1 <= orders_(4,1,0); ++n1)
+          for (unsigned int n2 = 2; n2 <= orders_(4,1,1); ++n2)
+            out[i++] = face_sign(n1,n2,4) * (o_(4,1,2) ? l[n1][0] * l[n2][1] * l[0][2] : l[n2][0] * l[n1][1] * l[0][2]);
+        for (unsigned int n1 = 2; n1 <= orders_(5,1,0); ++n1)
+          for (unsigned int n2 = 2; n2 <= orders_(5,1,1); ++n2)
+            out[i++] = face_sign(n1,n2,5) * (o_(5,1,2) ? l[n1][0] * l[n2][1] * l[1][2] : l[n2][0] * l[n1][1] * l[1][2]);
 
         // interior bubble functions
-        for (unsigned int n1 = 2; n1 <= orders_.cell(0); ++n1)
-          for (unsigned int n2 = 2; n2 <= orders_.cell(1); ++n2)
-            for (unsigned int n3 = 2; n3 <= orders_.cell(2); ++n3)
+        for (unsigned int n1 = 2; n1 <= orders_(0,0,0); ++n1)
+          for (unsigned int n2 = 2; n2 <= orders_(0,0,1); ++n2)
+            for (unsigned int n3 = 2; n3 <= orders_(0,0,2); ++n3)
               out[i++] = l[n1][0] * l[n2][1] * l[n3][2];
       }
     }
@@ -199,7 +219,7 @@ namespace Dune { namespace Impl
         out[1][0][0] = dl[1][0];
 
         // interior bubble functions
-        for (unsigned int k = 2; k <= orders_.cell(0); ++k)
+        for (unsigned int k = 2; k <= orders_(0,0,0); ++k)
           out[k][0] = dl[k][0];
       }
       else if constexpr(dim == 2) {
@@ -213,28 +233,33 @@ namespace Dune { namespace Impl
         out[3][0][0] = dl[1][0] * l[1][1];
         out[3][0][1] = l[1][0] * dl[1][1];
 
+        auto const edge_sign = [&](unsigned int k, int i)
+        {
+          return power(o_(i,1,0), k);
+        };
+
         // edge functions
         unsigned int i = 4;
-        for (unsigned int k = 2; k <= orders_.edge(0); ++k,++i) {
-          out[i][0][0] = dl[0][0] * l[k][1];
-          out[i][0][1] = l[0][0] * dl[k][1];
+        for (unsigned int k = 2; k <= orders_(0,1); ++k,++i) {
+          out[i][0][0] = edge_sign(k,0) * dl[0][0] * l[k][1];
+          out[i][0][1] = edge_sign(k,0) * l[0][0] * dl[k][1];
         }
-        for (unsigned int k = 2; k <= orders_.edge(1); ++k,++i) {
-          out[i][0][0] = dl[1][0] * l[k][1];
-          out[i][0][1] = l[1][0] * dl[k][1];
+        for (unsigned int k = 2; k <= orders_(1,1); ++k,++i) {
+          out[i][0][0] = edge_sign(k,1) * dl[1][0] * l[k][1];
+          out[i][0][1] = edge_sign(k,1) * l[1][0] * dl[k][1];
         }
-        for (unsigned int k = 2; k <= orders_.edge(2); ++k,++i) {
-          out[i][0][0] = dl[k][0] * l[0][1];
-          out[i][0][1] = l[k][0] * dl[0][1];
+        for (unsigned int k = 2; k <= orders_(2,1); ++k,++i) {
+          out[i][0][0] = edge_sign(k,2) * dl[k][0] * l[0][1];
+          out[i][0][1] = edge_sign(k,2) * l[k][0] * dl[0][1];
         }
-        for (unsigned int k = 2; k <= orders_.edge(3); ++k,++i) {
-          out[i][0][0] = dl[k][0] * l[1][1];
-          out[i][0][1] = l[k][0] * dl[1][1];
+        for (unsigned int k = 2; k <= orders_(3,1); ++k,++i) {
+          out[i][0][0] = edge_sign(k,3) * dl[k][0] * l[1][1];
+          out[i][0][1] = edge_sign(k,3) * l[k][0] * dl[1][1];
         }
 
         // interior bubble functions
-        for (unsigned int n1 = 2; n1 <= orders_.cell(0); ++n1) {
-          for (unsigned int n2 = 2; n2 <= orders_.cell(1); ++n2,++i) {
+        for (unsigned int n1 = 2; n1 <= orders_(0,0,0); ++n1) {
+          for (unsigned int n2 = 2; n2 <= orders_(0,0,1); ++n2,++i) {
             out[i][0][0] = dl[n1][0] * l[n2][1];
             out[i][0][1] = l[n1][0] * dl[n2][1];
           }
@@ -267,117 +292,166 @@ namespace Dune { namespace Impl
         out[7][0][1] = l[1][0] * dl[1][1] * l[1][2];
         out[7][0][2] = l[1][0] * l[1][1] * dl[1][2];
 
+        auto const edge_sign = [&](unsigned int k, int i)
+        {
+          return power(o_(i,2,0), k);
+        };
+
         // edge functions
         unsigned int i = 8;
-        for (unsigned int k = 2; k <= orders_.edge(0); ++k, ++i) {
-          out[i][0][0] = dl[0][0] * l[0][1] * l[k][2];
-          out[i][0][1] = l[0][0] * dl[0][1] * l[k][2];
-          out[i][0][2] = l[0][0] * l[0][1] * dl[k][2];
+        for (unsigned int k = 2; k <= orders_(0,2); ++k, ++i) {
+          out[i][0][0] = edge_sign(k,0) * dl[0][0] * l[0][1] * l[k][2];
+          out[i][0][1] = edge_sign(k,0) * l[0][0] * dl[0][1] * l[k][2];
+          out[i][0][2] = edge_sign(k,0) * l[0][0] * l[0][1] * dl[k][2];
         }
-        for (unsigned int k = 2; k <= orders_.edge(1); ++k, ++i) {
-          out[i][0][0] = dl[1][0] * l[0][1] * l[k][2];
-          out[i][0][1] = l[1][0] * dl[0][1] * l[k][2];
-          out[i][0][2] = l[1][0] * l[0][1] * dl[k][2];
+        for (unsigned int k = 2; k <= orders_(1,2); ++k, ++i) {
+          out[i][0][0] = edge_sign(k,1) * dl[1][0] * l[0][1] * l[k][2];
+          out[i][0][1] = edge_sign(k,1) * l[1][0] * dl[0][1] * l[k][2];
+          out[i][0][2] = edge_sign(k,1) * l[1][0] * l[0][1] * dl[k][2];
         }
-        for (unsigned int k = 2; k <= orders_.edge(2); ++k, ++i) {
-          out[i][0][0] = dl[0][0] * l[1][1] * l[k][2];
-          out[i][0][1] = l[0][0] * dl[1][1] * l[k][2];
-          out[i][0][2] = l[0][0] * l[1][1] * dl[k][2];
+        for (unsigned int k = 2; k <= orders_(2,2); ++k, ++i) {
+          out[i][0][0] = edge_sign(k,2) * dl[0][0] * l[1][1] * l[k][2];
+          out[i][0][1] = edge_sign(k,2) * l[0][0] * dl[1][1] * l[k][2];
+          out[i][0][2] = edge_sign(k,2) * l[0][0] * l[1][1] * dl[k][2];
         }
-        for (unsigned int k = 2; k <= orders_.edge(3); ++k, ++i) {
-          out[i][0][0] = dl[1][0] * l[1][1] * l[k][2];
-          out[i][0][1] = l[1][0] * dl[1][1] * l[k][2];
-          out[i][0][2] = l[1][0] * l[1][1] * dl[k][2];
+        for (unsigned int k = 2; k <= orders_(3,2); ++k, ++i) {
+          out[i][0][0] = edge_sign(k,3) * dl[1][0] * l[1][1] * l[k][2];
+          out[i][0][1] = edge_sign(k,3) * l[1][0] * dl[1][1] * l[k][2];
+          out[i][0][2] = edge_sign(k,3) * l[1][0] * l[1][1] * dl[k][2];
         }
-        for (unsigned int k = 2; k <= orders_.edge(4); ++k, ++i) {
-          out[i][0][0] = dl[0][0] * l[k][1] * l[0][2];
-          out[i][0][1] = l[0][0] * dl[k][1] * l[0][2];
-          out[i][0][2] = l[0][0] * l[k][1] * dl[0][2];
+        for (unsigned int k = 2; k <= orders_(4,2); ++k, ++i) {
+          out[i][0][0] = edge_sign(k,4) * dl[0][0] * l[k][1] * l[0][2];
+          out[i][0][1] = edge_sign(k,4) * l[0][0] * dl[k][1] * l[0][2];
+          out[i][0][2] = edge_sign(k,4) * l[0][0] * l[k][1] * dl[0][2];
         }
-        for (unsigned int k = 2; k <= orders_.edge(5); ++k, ++i) {
-          out[i][0][0] = dl[1][0] * l[k][1] * l[0][2];
-          out[i][0][1] = l[1][0] * dl[k][1] * l[0][2];
-          out[i][0][2] = l[1][0] * l[k][1] * dl[0][2];
+        for (unsigned int k = 2; k <= orders_(5,2); ++k, ++i) {
+          out[i][0][0] = edge_sign(k,5) * dl[1][0] * l[k][1] * l[0][2];
+          out[i][0][1] = edge_sign(k,5) * l[1][0] * dl[k][1] * l[0][2];
+          out[i][0][2] = edge_sign(k,5) * l[1][0] * l[k][1] * dl[0][2];
         }
-        for (unsigned int k = 2; k <= orders_.edge(6); ++k, ++i) {
-          out[i][0][0] = dl[k][0] * l[0][1] * l[0][2];
-          out[i][0][1] = l[k][0] * dl[0][1] * l[0][2];
-          out[i][0][2] = l[k][0] * l[0][1] * dl[0][2];
+        for (unsigned int k = 2; k <= orders_(6,2); ++k, ++i) {
+          out[i][0][0] = edge_sign(k,6) * dl[k][0] * l[0][1] * l[0][2];
+          out[i][0][1] = edge_sign(k,6) * l[k][0] * dl[0][1] * l[0][2];
+          out[i][0][2] = edge_sign(k,6) * l[k][0] * l[0][1] * dl[0][2];
         }
-        for (unsigned int k = 2; k <= orders_.edge(7); ++k, ++i) {
-          out[i][0][0] = dl[k][0] * l[1][1] * l[0][2];
-          out[i][0][1] = l[k][0] * dl[1][1] * l[0][2];
-          out[i][0][2] = l[k][0] * l[1][1] * dl[0][2];
+        for (unsigned int k = 2; k <= orders_(7,2); ++k, ++i) {
+          out[i][0][0] = edge_sign(k,7) * dl[k][0] * l[1][1] * l[0][2];
+          out[i][0][1] = edge_sign(k,7) * l[k][0] * dl[1][1] * l[0][2];
+          out[i][0][2] = edge_sign(k,7) * l[k][0] * l[1][1] * dl[0][2];
         }
-        for (unsigned int k = 2; k <= orders_.edge(8); ++k, ++i) {
-          out[i][0][0] = dl[0][0] * l[k][1] * l[1][2];
-          out[i][0][1] = l[0][0] * dl[k][1] * l[1][2];
-          out[i][0][2] = l[0][0] * l[k][1] * dl[1][2];
+        for (unsigned int k = 2; k <= orders_(8,2); ++k, ++i) {
+          out[i][0][0] = edge_sign(k,8) * dl[0][0] * l[k][1] * l[1][2];
+          out[i][0][1] = edge_sign(k,8) * l[0][0] * dl[k][1] * l[1][2];
+          out[i][0][2] = edge_sign(k,8) * l[0][0] * l[k][1] * dl[1][2];
         }
-        for (unsigned int k = 2; k <= orders_.edge(9); ++k, ++i) {
-          out[i][0][0] = dl[1][0] * l[k][1] * l[1][2];
-          out[i][0][1] = l[1][0] * dl[k][1] * l[1][2];
-          out[i][0][2] = l[1][0] * l[k][1] * dl[1][2];
+        for (unsigned int k = 2; k <= orders_(9,2); ++k, ++i) {
+          out[i][0][0] = edge_sign(k,9) * dl[1][0] * l[k][1] * l[1][2];
+          out[i][0][1] = edge_sign(k,9) * l[1][0] * dl[k][1] * l[1][2];
+          out[i][0][2] = edge_sign(k,9) * l[1][0] * l[k][1] * dl[1][2];
         }
-        for (unsigned int k = 2; k <= orders_.edge(10); ++k, ++i) {
-          out[i][0][0] = dl[k][0] * l[0][1] * l[1][2];
-          out[i][0][1] = l[k][0] * dl[0][1] * l[1][2];
-          out[i][0][2] = l[k][0] * l[0][1] * dl[1][2];
+        for (unsigned int k = 2; k <= orders_(10,2); ++k, ++i) {
+          out[i][0][0] = edge_sign(k,10) * dl[k][0] * l[0][1] * l[1][2];
+          out[i][0][1] = edge_sign(k,10) * l[k][0] * dl[0][1] * l[1][2];
+          out[i][0][2] = edge_sign(k,10) * l[k][0] * l[0][1] * dl[1][2];
         }
-        for (unsigned int k = 2; k <= orders_.edge(11); ++k, ++i) {
-          out[i][0][0] = dl[k][0] * l[1][1] * l[1][2];
-          out[i][0][1] = l[k][0] * dl[1][1] * l[1][2];
-          out[i][0][2] = l[k][0] * l[1][1] * dl[1][2];
+        for (unsigned int k = 2; k <= orders_(11,2); ++k, ++i) {
+          out[i][0][0] = edge_sign(k,11) * dl[k][0] * l[1][1] * l[1][2];
+          out[i][0][1] = edge_sign(k,11) * l[k][0] * dl[1][1] * l[1][2];
+          out[i][0][2] = edge_sign(k,11) * l[k][0] * l[1][1] * dl[1][2];
         }
 
+
+        auto const face_sign = [&](unsigned int n1, unsigned int n2, int i)
+        {
+          const int o0 = o_(i,1,0);
+          const int o1 = o_(i,1,1);
+          return power(o0,n1) * power(o1,n2);
+        };
+
         // face functions
-        for (unsigned int n1 = 2; n1 <= orders_.face(0); ++n1) {
-          for (unsigned int n2 = 2; n2 <= orders_.face(1); ++n2, ++i) {
-            out[i][0][0] = dl[0][0] * l[n1][1] * l[n2][2];
-            out[i][0][1] = l[0][0] * dl[n1][1] * l[n2][2];
-            out[i][0][2] = l[0][0] * l[n1][1] * dl[n2][2];
+        for (unsigned int n1 = 2; n1 <= orders_(0,1,0); ++n1) {
+          for (unsigned int n2 = 2; n2 <= orders_(0,1,1); ++n2, ++i) {
+            if (o_(0,1,2) > 0) {
+              out[i][0][0] = face_sign(n1,n2,0) * dl[0][0] * l[n1][1] * l[n2][2];
+              out[i][0][1] = face_sign(n1,n2,0) * l[0][0] * dl[n1][1] * l[n2][2];
+              out[i][0][2] = face_sign(n1,n2,0) * l[0][0] * l[n1][1] * dl[n2][2];
+            } else {
+              out[i][0][0] = face_sign(n1,n2,0) * dl[0][0] * l[n2][1] * l[n1][2];
+              out[i][0][1] = face_sign(n1,n2,0) * l[0][0] * dl[n2][1] * l[n1][2];
+              out[i][0][2] = face_sign(n1,n2,0) * l[0][0] * l[n2][1] * dl[n1][2];
+            }
           }
         }
-        for (unsigned int n1 = 2; n1 <= orders_.face(2); ++n1) {
-          for (unsigned int n2 = 2; n2 <= orders_.face(3); ++n2, ++i) {
-            out[i][0][0] = dl[1][0] * l[n1][1] * l[n2][2];
-            out[i][0][1] = l[1][0] * dl[n1][1] * l[n2][2];
-            out[i][0][2] = l[1][0] * l[n1][1] * dl[n2][2];
+        for (unsigned int n1 = 2; n1 <= orders_(1,1,0); ++n1) {
+          for (unsigned int n2 = 2; n2 <= orders_(1,1,1); ++n2, ++i) {
+            if (o_(1,1,2) > 0) {
+              out[i][0][0] = face_sign(n1,n2,1) * dl[1][0] * l[n1][1] * l[n2][2];
+              out[i][0][1] = face_sign(n1,n2,1) * l[1][0] * dl[n1][1] * l[n2][2];
+              out[i][0][2] = face_sign(n1,n2,1) * l[1][0] * l[n1][1] * dl[n2][2];
+            } else {
+              out[i][0][0] = face_sign(n1,n2,1) * dl[1][0] * l[n2][1] * l[n1][2];
+              out[i][0][1] = face_sign(n1,n2,1) * l[1][0] * dl[n2][1] * l[n1][2];
+              out[i][0][2] = face_sign(n1,n2,1) * l[1][0] * l[n2][1] * dl[n1][2];
+            }
           }
         }
-        for (unsigned int n1 = 2; n1 <= orders_.face(4); ++n1) {
-          for (unsigned int n2 = 2; n2 <= orders_.face(5); ++n2, ++i) {
-            out[i][0][0] = dl[n1][0] * l[0][1] * l[n2][2];
-            out[i][0][1] = l[n1][0] * dl[0][1] * l[n2][2];
-            out[i][0][2] = l[n1][0] * l[0][1] * dl[n2][2];
+        for (unsigned int n1 = 2; n1 <= orders_(2,1,0); ++n1) {
+          for (unsigned int n2 = 2; n2 <= orders_(2,1,1); ++n2, ++i) {
+            if (o_(2,1,2) > 0) {
+              out[i][0][0] = face_sign(n1,n2,2) * dl[n1][0] * l[0][1] * l[n2][2];
+              out[i][0][1] = face_sign(n1,n2,2) * l[n1][0] * dl[0][1] * l[n2][2];
+              out[i][0][2] = face_sign(n1,n2,2) * l[n1][0] * l[0][1] * dl[n2][2];
+            } else {
+              out[i][0][0] = face_sign(n1,n2,2) * dl[n2][0] * l[0][1] * l[n1][2];
+              out[i][0][1] = face_sign(n1,n2,2) * l[n2][0] * dl[0][1] * l[n1][2];
+              out[i][0][2] = face_sign(n1,n2,2) * l[n2][0] * l[0][1] * dl[n1][2];
+            }
           }
         }
-        for (unsigned int n1 = 2; n1 <= orders_.face(6); ++n1) {
-          for (unsigned int n2 = 2; n2 <= orders_.face(7); ++n2, ++i) {
-            out[i][0][0] = dl[n1][0] * l[1][1] * l[n2][2];
-            out[i][0][1] = l[n1][0] * dl[1][1] * l[n2][2];
-            out[i][0][2] = l[n1][0] * l[1][1] * dl[n2][2];
+        for (unsigned int n1 = 2; n1 <= orders_(3,1,0); ++n1) {
+          for (unsigned int n2 = 2; n2 <= orders_(3,1,1); ++n2, ++i) {
+            if (o_(3,1,2) > 0) {
+              out[i][0][0] = face_sign(n1,n2,3) * dl[n1][0] * l[1][1] * l[n2][2];
+              out[i][0][1] = face_sign(n1,n2,3) * l[n1][0] * dl[1][1] * l[n2][2];
+              out[i][0][2] = face_sign(n1,n2,3) * l[n1][0] * l[1][1] * dl[n2][2];
+            } else {
+              out[i][0][0] = face_sign(n1,n2,3) * dl[n2][0] * l[1][1] * l[n1][2];
+              out[i][0][1] = face_sign(n1,n2,3) * l[n2][0] * dl[1][1] * l[n1][2];
+              out[i][0][2] = face_sign(n1,n2,3) * l[n2][0] * l[1][1] * dl[n1][2];
+            }
           }
         }
-        for (unsigned int n1 = 2; n1 <= orders_.face(8); ++n1) {
-          for (unsigned int n2 = 2; n2 <= orders_.face(9); ++n2, ++i) {
-            out[i][0][0] = dl[n1][0] * l[n2][1] * l[0][2];
-            out[i][0][1] = l[n1][0] * dl[n2][1] * l[0][2];
-            out[i][0][2] = l[n1][0] * l[n2][1] * dl[0][2];
+        for (unsigned int n1 = 2; n1 <= orders_(4,1,0); ++n1) {
+          for (unsigned int n2 = 2; n2 <= orders_(4,1,1); ++n2, ++i) {
+            if (o_(4,1,2) > 0) {
+              out[i][0][0] = face_sign(n1,n2,4) * dl[n1][0] * l[n2][1] * l[0][2];
+              out[i][0][1] = face_sign(n1,n2,4) * l[n1][0] * dl[n2][1] * l[0][2];
+              out[i][0][2] = face_sign(n1,n2,4) * l[n1][0] * l[n2][1] * dl[0][2];
+            } else {
+              out[i][0][0] = face_sign(n1,n2,4) * dl[n2][0] * l[n1][1] * l[0][2];
+              out[i][0][1] = face_sign(n1,n2,4) * l[n2][0] * dl[n1][1] * l[0][2];
+              out[i][0][2] = face_sign(n1,n2,4) * l[n2][0] * l[n1][1] * dl[0][2];
+            }
           }
         }
-        for (unsigned int n1 = 2; n1 <= orders_.face(10); ++n1) {
-          for (unsigned int n2 = 2; n2 <= orders_.face(11); ++n2, ++i) {
-            out[i][0][0] = dl[n1][0] * l[n2][1] * l[1][2];
-            out[i][0][1] = l[n1][0] * dl[n2][1] * l[1][2];
-            out[i][0][2] = l[n1][0] * l[n2][1] * dl[1][2];
+        for (unsigned int n1 = 2; n1 <= orders_(5,1,0); ++n1) {
+          for (unsigned int n2 = 2; n2 <= orders_(5,1,1); ++n2, ++i) {
+            if (o_(5,1,2) > 0) {
+              out[i][0][0] = face_sign(n1,n2,5) * dl[n1][0] * l[n2][1] * l[1][2];
+              out[i][0][1] = face_sign(n1,n2,5) * l[n1][0] * dl[n2][1] * l[1][2];
+              out[i][0][2] = face_sign(n1,n2,5) * l[n1][0] * l[n2][1] * dl[1][2];
+            } else {
+              out[i][0][0] = face_sign(n1,n2,5) * dl[n2][0] * l[n1][1] * l[1][2];
+              out[i][0][1] = face_sign(n1,n2,5) * l[n2][0] * dl[n1][1] * l[1][2];
+              out[i][0][2] = face_sign(n1,n2,5) * l[n2][0] * l[n1][1] * dl[1][2];
+            }
           }
         }
 
         // interior bubble functions
-        for (unsigned int n1 = 2; n1 <= orders_.cell(0); ++n1) {
-          for (unsigned int n2 = 2; n2 <= orders_.cell(1); ++n2) {
-            for (unsigned int n3 = 2; n3 <= orders_.cell(2); ++n3, ++i) {
+        for (unsigned int n1 = 2; n1 <= orders_(0,0,0); ++n1) {
+          for (unsigned int n2 = 2; n2 <= orders_(0,0,1); ++n2) {
+            for (unsigned int n3 = 2; n3 <= orders_(0,0,2); ++n3, ++i) {
               out[i][0][0] = dl[n1][0] * l[n2][1] * l[n3][2];
               out[i][0][1] = l[n1][0] * dl[n2][1] * l[n3][2];
               out[i][0][2] = l[n1][0] * l[n2][1] * dl[n3][2];
@@ -429,7 +503,7 @@ namespace Dune { namespace Impl
         localKeys_[1] = LocalKey(1,dim,0);
 
         // interior bubble functions
-        for (unsigned int k = 2; k <= orders_.cell(0); ++k)
+        for (unsigned int k = 2; k <= orders_(0,0,0); ++k)
           localKeys_[k] = LocalKey(0,0,k-2);
       }
       else if constexpr(dim == 2) {
@@ -440,12 +514,12 @@ namespace Dune { namespace Impl
         // edge functions
         unsigned int i = 4;
         for (unsigned int s = 0; s < 4; ++s)
-          for (unsigned int k = 2; k <= orders_.edge(s); ++k)
+          for (unsigned int k = 2; k <= orders_(s,1,0); ++k)
             localKeys_[i++] = LocalKey(s,dim-1,k-2);
 
         // interior bubble functions
-        for (unsigned int n1 = 2, j = 0; n1 <= orders_.cell(0); ++n1)
-          for (unsigned int n2 = 2; n2 <= orders_.cell(1); ++n2)
+        for (unsigned int n1 = 2, j = 0; n1 <= orders_(0,0,0); ++n1)
+          for (unsigned int n2 = 2; n2 <= orders_(0,0,1); ++n2)
             localKeys_[i++] = LocalKey(0,0,j++);
       }
       else if constexpr(dim == 3) {
@@ -456,19 +530,19 @@ namespace Dune { namespace Impl
         // edge functions
         unsigned int i = 8;
         for (unsigned int s = 0; s < 12; ++s)
-          for (unsigned int k = 2; k <= orders_.edge(s); ++k)
+          for (unsigned int k = 2; k <= orders_(s,2,0); ++k)
             localKeys_[i++] = LocalKey(s,dim-1,k-2);
 
         // face functions
         for (unsigned int s = 0; s < 6; ++s)
-          for (unsigned int n1 = 2, j = 0; n1 <= orders_.face(2*s+0); ++n1)
-            for (unsigned int n2 = 2; n2 <= orders_.face(2*s+1); ++n2)
+          for (unsigned int n1 = 2, j = 0; n1 <= orders_(s,1,0); ++n1)
+            for (unsigned int n2 = 2; n2 <= orders_(s,1,1); ++n2)
               localKeys_[i++] = LocalKey(s,dim-1,j++);
 
         // interior bubble functions
-        for (unsigned int n1 = 2, j = 0; n1 <= orders_.cell(0); ++n1)
-          for (unsigned int n2 = 2; n2 <= orders_.cell(1); ++n2)
-            for (unsigned int n3 = 2; n3 <= orders_.cell(2); ++n3)
+        for (unsigned int n1 = 2, j = 0; n1 <= orders_(0,0,0); ++n1)
+          for (unsigned int n2 = 2; n2 <= orders_(0,0,1); ++n2)
+            for (unsigned int n3 = 2; n3 <= orders_(0,0,2); ++n3)
               localKeys_[i++] = LocalKey(0,0,j++);
       }
     }
@@ -608,14 +682,21 @@ namespace Dune
      */
     using Traits = LocalFiniteElementTraits<LB, LC, LI>;
 
-    LobattoCubeLocalFiniteElement (const Orders& orders)
-      : basis_(orders)
+    //! Construct a local finite-element of given orders with given orientation
+    LobattoCubeLocalFiniteElement (const Orders& orders, const Orientation<dim>& orientation)
+      : basis_(orders, orientation)
       , coefficients_(orders)
       , interpolation_(basis_)
     {}
 
+    //! Construct a local finite-element of given orders with default orientation
+    LobattoCubeLocalFiniteElement (const Orders& orders)
+      : LobattoCubeLocalFiniteElement{orders, Orientation<dim>{GeometryTypes::cube(dim)}}
+    {}
+
+    //! Construct a local finite-element of constant order `p` and default orientation
     LobattoCubeLocalFiniteElement (std::uint8_t p = 1)
-      : LobattoCubeLocalFiniteElement(Orders{p})
+      : LobattoCubeLocalFiniteElement{Orders{p}}
     {}
 
     /** \brief Returns the local basis, i.e., the set of shape functions
