@@ -56,7 +56,7 @@ namespace Dune
             std::size_t A = std::distance(v.begin(), std::min_element(v.begin(), v.end()));
             std::size_t B = 0, C = 0;
 
-            const std::array<std::array<int,2>, 3> neigh = { {1,2}, {2,0}, {0,1} };
+            const std::array<std::array<int,2>, 3> neigh{{ {{1,2}}, {{2,0}}, {{0,1}} }};
             if (v[neigh[A][1]] > v[neigh[A][0]])
               B = neigh[A][0], C = neigh[A][1];
             else
@@ -77,7 +77,7 @@ namespace Dune
             std::size_t A = std::distance(v.begin(), std::min_element(v.begin(), v.end()));
             std::size_t B = 0, C = 0;
 
-            const std::array<std::array<int,2>, 4> neigh = { {1,2}, {3,0}, {2,1}, {0,3} };
+            const std::array<std::array<int,2>, 4> neigh{{ {{1,2}}, {{3,0}}, {{2,1}}, {{0,3}} }};
             if (v[neigh[A][1]] > v[neigh[A][0]])
               B = neigh[A][0], C = neigh[A][1];
             else
