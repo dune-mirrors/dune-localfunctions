@@ -15,6 +15,13 @@ namespace Impl {
   // --------------------------------------------------------------------------
   // inner products of vectors in various forms
 
+  template<typename T, typename S,
+    std::enable_if_t<std::is_floating_point_v<T> || std::is_floating_point_v<S>, int> = 0>
+  auto inner (const T& lhs, const S& rhs)
+  {
+    return lhs * rhs;
+  }
+
   template<typename T, int n, typename S>
   auto inner (const FieldVector<T,n>& lhs, const FieldVector<S,n>& rhs)
   {
@@ -42,6 +49,13 @@ namespace Impl {
 
   // --------------------------------------------------------------------------
   // difference of vectors in various forms
+
+  template<typename T, typename S,
+    std::enable_if_t<std::is_floating_point_v<T> || std::is_floating_point_v<S>, int> = 0>
+  auto difference (const T& lhs, const S& rhs)
+  {
+    return lhs - rhs;
+  }
 
   template<typename T, int n, typename S>
   auto difference (const FieldVector<T,n>& lhs, const FieldVector<S,n>& rhs)

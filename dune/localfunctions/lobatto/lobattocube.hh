@@ -618,7 +618,7 @@ namespace Dune { namespace Impl
             {
               auto&& local = localRefElem.global(qp.position());
               localBasis_.evaluateFunction(local, shapeValues);
-              auto fAtQP = f(local);
+              RangeType fAtQP = f(local);
 
               // sum up over all computed coefficients
               RangeType fhAtQP = 0;
