@@ -600,7 +600,7 @@ namespace Dune { namespace Impl
       unsigned int idx = 0;
 
       // vertex functions
-      if (const unsigned int sv = orders.size(refElem.type(), dim); sv > 0) {
+      if (const unsigned int sv = orders.size(dim); sv > 0) {
         for (; idx < sv; ++idx)
           out[idx] = f(refElem.position(idx,dim));
       }
