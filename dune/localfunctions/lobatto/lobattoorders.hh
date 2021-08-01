@@ -49,8 +49,6 @@ namespace Dune
   public:
     std::array<std::uint8_t, 1> pb_;
 
-    LobattoOrders () = default;
-
     // p = polynomial degree
     LobattoOrders (std::uint8_t p = 1)
       : LobattoOrders{std::array{p}}
@@ -89,12 +87,12 @@ namespace Dune
 
       unsigned int s = 0;
       for (int i = 0; i < refElem.size(c); ++i)
-        s += size(i,c);
+        s += size(type,i,c);
       return s;
     }
 
     //! Number of DOFs associated to the i'th entity of codim c
-    unsigned int size (unsigned int i, int c) const
+    unsigned int size (GeometryType type, unsigned int i, int c) const
     {
       unsigned int s = 1;
       for (int k = 0; k < dim-c; ++k)
@@ -112,8 +110,6 @@ namespace Dune
     std::array<std::uint8_t, 2> pb_;
     std::array<std::uint8_t, 4> pe_;
     std::uint8_t maxP_ = 0;
-
-    LobattoOrders () = default;
 
     LobattoOrders (std::uint8_t p = 1)
       : LobattoOrders{p,p}
@@ -171,12 +167,12 @@ namespace Dune
 
       unsigned int s = 0;
       for (int i = 0; i < refElem.size(c); ++i)
-        s += size(i,c);
+        s += size(type,i,c);
       return s;
     }
 
     //! Number of DOFs associated to the i'th entity of codim c
-    unsigned int size (unsigned int i, int c) const
+    unsigned int size (GeometryType type, unsigned int i, int c) const
     {
       unsigned int s = 1;
       for (int k = 0; k < dim-c; ++k)
@@ -210,8 +206,6 @@ namespace Dune
     std::array<std::array<std::uint8_t,2>, 6> pf_;
     std::array<std::uint8_t, 12> pe_;
     std::uint8_t maxP_ = 0;
-
-    LobattoOrders () = default;
 
     LobattoOrders (std::uint8_t p = 1)
       : LobattoOrders{p,p,p}
@@ -286,12 +280,12 @@ namespace Dune
 
       unsigned int s = 0;
       for (int i = 0; i < refElem.size(c); ++i)
-        s += size(i,c);
+        s += size(type,i,c);
       return s;
     }
 
     //! Number of DOFs associated to the i'th entity of codim c
-    unsigned int size (unsigned int i, int c) const
+    unsigned int size (GeometryType type, unsigned int i, int c) const
     {
       unsigned int s = 1;
       for (int k = 0; k < dim-c; ++k)
@@ -313,12 +307,10 @@ namespace Dune
   class LobattoHomogeneousOrders
   {
   public:
-    unsigned int p_ = 0;
-
-    LobattoHomogeneousOrders () = default;
+    unsigned int p_;
 
     // p = polynomial degree
-    LobattoHomogeneousOrders (unsigned int p)
+    LobattoHomogeneousOrders (unsigned int p = 1)
       : p_{p}
     {}
 
@@ -329,7 +321,7 @@ namespace Dune
     }
 
     //! Return the polynomial order on the `k`th basis function on the `i`th entity pf codim `c`
-    unsigned int operator() (unsigned int /*i*/, int /*c*/, unsigned int /*k*/) const
+    unsigned int operator() (unsigned int /*i*/, int /*c*/, unsigned int /*k*/ = 0) const
     {
       return p_;
     }
@@ -338,7 +330,7 @@ namespace Dune
     unsigned int size (GeometryType type) const
     {
       unsigned int s = 0;
-      for (int c = 0; c <= dim; ++c)
+      for (unsigned int c = 0; c <= dim; ++c)
         s += size(type, c);
       return s;
     }
@@ -346,16 +338,22 @@ namespace Dune
     //! Number of DOFs associated to all entities of codim c
     unsigned int size (GeometryType type, int c) const
     {
-      assert(dim >= c);
+      assert(int(dim) >= c);
       auto refElem = referenceElement<double,dim>(type);
       return refElem.size(c) * power(std::max(0,int(p_)-1), dim-c);
     }
 
     //! Number of DOFs associated to the i'th entity of codim c
-    unsigned int size (unsigned int i, int c) const
+    unsigned int size (GeometryType type, unsigned int i, int c) const
     {
-      assert(dim >= c);
+      assert(int(dim) >= c);
       return power(std::max(0,int(p_)-1), dim-c);
+    }
+
+    friend std::ostream& operator<< (std::ostream& out, LobattoHomogeneousOrders const& orders)
+    {
+      out << "p=" << orders.p_;
+      return out;
     }
   };
 

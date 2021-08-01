@@ -537,7 +537,7 @@ namespace Dune { namespace Impl
         for (unsigned int s = 0; s < 6; ++s)
           for (unsigned int n1 = 2, j = 0; n1 <= orders_(s,1,0); ++n1)
             for (unsigned int n2 = 2; n2 <= orders_(s,1,1); ++n2)
-              localKeys_[i++] = LocalKey(s,dim-1,j++);
+              localKeys_[i++] = LocalKey(s,dim-2,j++);
 
         // interior bubble functions
         for (unsigned int n1 = 2, j = 0; n1 <= orders_(0,0,0); ++n1)
@@ -610,7 +610,7 @@ namespace Dune { namespace Impl
         unsigned int shift = 0;
         for (int i = 0; i < refElem.size(codim); ++i) {
           // make the subEntity projection for (f - fh_v)
-          if (const unsigned int se = orders.size(i,codim); se > 0) {
+          if (const unsigned int se = orders.size(refElem.type(),i,codim); se > 0) {
             DynamicMatrix<R> A(se,se, 0.0);
             DynamicVector<R> b(se, 0.0);
             auto localRefElem = refElem.template geometry<codim>(i);
