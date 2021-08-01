@@ -62,7 +62,7 @@ namespace Dune { namespace Impl
      */
     unsigned int size () const
     {
-      return orders_.size(GeometryTypes::cube(dim));
+      return orders_.size();
     }
 
     //! \brief Evaluate all shape functions
@@ -495,7 +495,7 @@ namespace Dune { namespace Impl
     //! \brief Default constructor
     LobattoCubeLocalCoefficients (const Orders& orders)
       : orders_(orders)
-      , localKeys_(orders_.size(GeometryTypes::cube(dim)))
+      , localKeys_(orders_.size())
     {
       if constexpr(dim == 1) {
         // vertex functions
@@ -550,7 +550,7 @@ namespace Dune { namespace Impl
     //! number of coefficients
     unsigned int size () const
     {
-      return orders_.size(GeometryTypes::cube(dim));
+      return orders_.size();
     }
 
     //! get i-th LocalKey
@@ -610,7 +610,7 @@ namespace Dune { namespace Impl
         unsigned int shift = 0;
         for (int i = 0; i < refElem.size(codim); ++i) {
           // make the subEntity projection for (f - fh_v)
-          if (const unsigned int se = orders.size(refElem.type(),i,codim); se > 0) {
+          if (const unsigned int se = orders.size(i,codim); se > 0) {
             DynamicMatrix<R> A(se,se, 0.0);
             DynamicVector<R> b(se, 0.0);
             auto localRefElem = refElem.template geometry<codim>(i);
@@ -695,8 +695,8 @@ namespace Dune
     {}
 
     //! Construct a local finite-element of constant order `p` and default orientation
-    LobattoCubeLocalFiniteElement (std::uint8_t p = 1)
-      : LobattoCubeLocalFiniteElement{Orders{p}}
+    LobattoCubeLocalFiniteElement (unsigned int p = 1)
+      : LobattoCubeLocalFiniteElement{Orders{GeometryTypes::cube(dim), p}}
     {}
 
     /** \brief Returns the local basis, i.e., the set of shape functions
