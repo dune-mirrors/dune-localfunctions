@@ -12,7 +12,6 @@
 
 #include <dune/geometry/type.hh>
 
-#include <dune/localfunctions/common/derivative.hh>
 #include <dune/localfunctions/common/localbasis.hh>
 #include <dune/localfunctions/common/localinterpolation.hh>
 #include <dune/localfunctions/common/localkey.hh>
@@ -159,36 +158,9 @@ namespace Dune
   class LocalInterpolationVirtualInterfaceBase
   {
   public:
+
     //! type of function to interpolate
-    struct FunctionType
-    {
-      using JacobianType = typename Impl::DerivativeTraits<RangeType(DomainType)>::type;
-
-      template<class F>
-      FunctionType (const F& ff)
-        : evaluateFunction(Impl::makeFunctionWithCallOperator<DomainType>(ff))
-        // , evaluateJacobian(Impl::makeDerivative<DomainType>(ff))
-      {}
-
-      // template<class F, class DF>
-      // FunctionType (const F& ff, const DF& dff)
-      //   : evaluateFunction(Impl::makeFunctionWithCallOperator<DomainType>(ff))
-      //   , evaluateJacobian(Impl::makeFunctionWithCallOperator<DomainType>(dff))
-      // {}
-
-      RangeType operator() (const DomainType& x) const
-      {
-        return evaluateFunction(x);
-      }
-
-      // JacobianType derivative (const DomainType& x) const
-      // {
-      //   return evaluateJacobian(x);
-      // }
-
-      std::function<RangeType(DomainType)> evaluateFunction;
-      // std::function<JacobianType(DomainType)> evaluateJacobian;
-    };
+    using FunctionType = std::function<RangeType(DomainType)>;
 
     //! type of the coefficient vector in the interpolate method
     typedef typename RangeType::field_type CoefficientType;
@@ -216,12 +188,10 @@ namespace Dune
   class LocalInterpolationVirtualInterface
     : public LocalInterpolationVirtualInterfaceBase<DomainType, RangeType>
   {
-    using Super = LocalInterpolationVirtualInterfaceBase<DomainType, RangeType>;
-
   public:
 
     //! type of function to interpolate
-    using FunctionType = typename Super::FunctionType;
+    using FunctionType = std::function<RangeType(DomainType)>;
 
     //! type of the coefficient vector in the interpolate method
     typedef typename RangeType::field_type CoefficientType;
@@ -249,8 +219,10 @@ namespace Dune
       std::enable_if_t<not std::is_base_of<FunctionType, F>::value, int> = 0>
     void interpolate (const F& ff, std::vector<CoefficientType>& out) const
     {
+      const auto& f = Impl::makeFunctionWithCallOperator<DomainType>(ff);
+
       const LocalInterpolationVirtualInterfaceBase<DomainType, RangeType>& asBase = *this;
-      asBase.interpolate(FunctionType(ff),out);
+      asBase.interpolate(FunctionType(std::cref(f)),out);
     }
 
     /** \brief determine coefficients interpolating a given function
@@ -261,9 +233,11 @@ namespace Dune
     template<class F, class C>
     void interpolate (const F& ff, std::vector<C>& out) const
     {
+      const auto& f = Impl::makeFunctionWithCallOperator<DomainType>(ff);
+
       std::vector<CoefficientType> outDummy;
       const LocalInterpolationVirtualInterfaceBase<DomainType, RangeType>& asBase = *this;
-      asBase.interpolate(FunctionType(ff),outDummy);
+      asBase.interpolate(FunctionType(std::cref(f)),outDummy);
       out.resize(outDummy.size());
       for(typename std::vector<CoefficientType>::size_type i=0; i<outDummy.size(); ++i)
         out[i] = outDummy[i];

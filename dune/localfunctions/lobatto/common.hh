@@ -7,7 +7,6 @@
 #include <type_traits>
 
 #include <dune/common/typeutilities.hh>
-#include <dune/localfunctions/common/derivative.hh>
 
 namespace Dune {
 namespace Impl {

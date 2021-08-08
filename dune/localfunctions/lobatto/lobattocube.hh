@@ -33,39 +33,40 @@ namespace Dune { namespace Impl
   template<class LocalBasis>
   class LobattoCubeLocalInterpolation;
 
-   /** \brief Lobatto shape functions of arbitrary order on the reference line [0,1]
-
-     \tparam D Type to represent the field in the domain
-     \tparam R Type to represent the field in the range
-     \tparam dim Dimension of the domain cube
-     \tparam Orders Type encoding the polynomial orders of the shape functions
+  //! Lobatto shape functions of arbitrary order on cube elements
+   /**
+    * \tparam D    Type to represent the field in the domain
+    * \tparam R    Type to represent the field in the range
+    * \tparam dim  Dimension of the domain cube
+    * \tparam Orders  Type encoding the polynomial orders of the shape functions
    */
   template<class D, class R, unsigned int dim, class Orders>
   class LobattoCubeLocalBasis
   {
     friend class LobattoCubeLocalInterpolation<LobattoCubeLocalBasis<D,R,dim,Orders> >;
 
-    Orders orders_;
+    Orders orders_{};
     Lobatto<R,D> lobatto_{};
     Orientation<dim> o_{};
 
   public:
-    using Traits = LocalBasisTraits<D,dim,FieldVector<D,dim>,R,1,FieldVector<R,1>,FieldMatrix<R,1,dim> >;
+    using Traits
+      = LocalBasisTraits<D,dim,FieldVector<D,dim>,R,1,FieldVector<R,1>,FieldMatrix<R,1,dim> >;
 
-    // p = polynomial degree
+    //! Construct the local basis from a set of polynomial orders and a reorientation
+    //! of the reference element
     LobattoCubeLocalBasis (const Orders& orders, const Orientation<dim>& o)
       : orders_(orders)
       , o_(o)
     {}
 
-    /** \brief Number of shape functions
-     */
+    ///! Number of shape functions
     unsigned int size () const
     {
       return orders_.size();
     }
 
-    //! \brief Evaluate all shape functions
+    //! Evaluate all shape functions
     void evaluateFunction(const typename Traits::DomainType& x,
                           std::vector<typename Traits::RangeType>& out) const
     {
@@ -76,7 +77,6 @@ namespace Dune { namespace Impl
       for (unsigned int k = 0; k <= orders_.max(); ++k)
         for (unsigned int d = 0; d < dim; ++d)
           l[k][d] = lobatto_(k,x[d]);
-
 
       if constexpr(dim == 1) {
         // vertex functions
@@ -193,13 +193,13 @@ namespace Dune { namespace Impl
       }
     }
 
-    /** \brief Evaluate Jacobian of all shape functions
-     *
+    //! Evaluate Jacobian of all shape functions
+    /**
      * \param x Point in the reference cube where to evaluation the Jacobians
      * \param[out] out The Jacobians of all shape functions at the point x
      */
-    void evaluateJacobian(const typename Traits::DomainType& x,
-                          std::vector<typename Traits::JacobianType>& out) const
+    void evaluateJacobian (const typename Traits::DomainType& x,
+                           std::vector<typename Traits::JacobianType>& out) const
     {
       out.resize(size());
 
@@ -461,28 +461,28 @@ namespace Dune { namespace Impl
       }
     }
 
-    /** \brief Evaluate partial derivatives of any order of all shape functions
-     *
+    //! Evaluate partial derivatives of any order of all shape functions
+    /**
      * \param order Order of the partial derivatives, in the classic multi-index notation
      * \param in Position where to evaluate the derivatives
      * \param[out] out The desired partial derivatives
      */
-    void partial(const std::array<unsigned int,dim>& order,
-                 const typename Traits::DomainType& in,
-                 std::vector<typename Traits::RangeType>& out) const
+    void partial (const std::array<unsigned int,dim>& order,
+                  const typename Traits::DomainType& in,
+                  std::vector<typename Traits::RangeType>& out) const
     {
       DUNE_THROW(NotImplemented, "Partial derivative is not implemented!");
     }
 
-    //! \brief Polynomial order of the shape functions
+    //! Polynomial order of the shape functions
     unsigned int order () const
     {
       return orders_.max();
     }
   };
 
-  /** \brief Associations of the Lagrange degrees of freedom to subentities of the reference cube
-   *
+  //! Associations of the Lagrange degrees of freedom to subentities of the reference cube
+  /**
    * \tparam dim Dimension of the reference cube
    */
   template<unsigned int dim, class Orders>
@@ -492,7 +492,7 @@ namespace Dune { namespace Impl
     std::vector<LocalKey> localKeys_;
 
   public:
-    //! \brief Default constructor
+    //! Constructor taking the assignment of polynomial orders to sub-entities
     LobattoCubeLocalCoefficients (const Orders& orders)
       : orders_(orders)
       , localKeys_(orders_.size())
@@ -560,9 +560,9 @@ namespace Dune { namespace Impl
     }
   };
 
-  /** \brief Evaluate the degrees of freedom of a Lagrange basis
-   *
-   * \tparam LocalBasis The corresponding set of shape functions
+  //! Evaluate the degrees of freedom of a Lagrange basis
+  /**
+   * \tparam LocalBasis  The corresponding set of shape functions
    */
   template<class LocalBasis>
   class LobattoCubeLocalInterpolation
@@ -574,14 +574,15 @@ namespace Dune { namespace Impl
       : localBasis_(localBasis)
     {}
 
-    /** \brief Evaluate a given function at the Lagrange nodes
-     *
+    //! Evaluate a given function at the Lagrange nodes
+    /**
      * \tparam F Type of function to evaluate
      * \tparam C Type used for the values of the function
+     *
      * \param[in] ff Function to evaluate
      * \param[out] out Array of function values
      */
-    template<typename F, typename C>
+    template<class F, class C>
     void interpolate (const F& ff, std::vector<C>& out) const
     {
       out.resize(localBasis_.size());
@@ -663,8 +664,8 @@ namespace Dune { namespace Impl
 
 namespace Dune
 {
-  /** \brief Lobatto finite element for cubes with flexible polynomial order
-   *
+  //! Lobatto finite element for cubes with flexible polynomial order
+  /**
    * \tparam D Type used for domain coordinates
    * \tparam R Type used for function values
    * \tparam dim dimension of the reference element
@@ -678,8 +679,7 @@ namespace Dune
     using LI = Impl::LobattoCubeLocalInterpolation<LB>;
 
   public:
-    /** \brief Export number types, dimensions, etc.
-     */
+    //! Export number types, dimensions, etc.
     using Traits = LocalFiniteElementTraits<LB, LC, LI>;
 
     //! Construct a local finite-element of given orders with given orientation
@@ -699,35 +699,31 @@ namespace Dune
       : LobattoCubeLocalFiniteElement{Orders{GeometryTypes::cube(dim), p}}
     {}
 
-    /** \brief Returns the local basis, i.e., the set of shape functions
-     */
+    //! Returns the local basis, i.e., the set of shape functions
     const typename Traits::LocalBasisType& localBasis () const
     {
       return basis_;
     }
 
-    /** \brief Returns the assignment of the degrees of freedom to the element subentities
-     */
+    //! Returns the assignment of the degrees of freedom to the element subentities
     const typename Traits::LocalCoefficientsType& localCoefficients () const
     {
       return coefficients_;
     }
 
-    /** \brief Returns object that evaluates degrees of freedom
-     */
+    //! Returns object that evaluates degrees of freedom
     const typename Traits::LocalInterpolationType& localInterpolation () const
     {
       return interpolation_;
     }
 
-    /** \brief The number of shape functions */
+    //! The number of shape functions
     std::size_t size () const
     {
       return basis_.size();
     }
 
-    /** \brief The reference element that the local finite element is defined on
-     */
+    //! The reference element that the local finite element is defined on
     static constexpr GeometryType type ()
     {
       return GeometryTypes::cube(dim);

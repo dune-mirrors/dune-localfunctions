@@ -20,6 +20,7 @@
 
 namespace Dune
 {
+  // Basis function of Lobatto type in 1d
   template<class D, class R>
   struct Lobatto
   {
@@ -28,15 +29,20 @@ namespace Dune
     using Range = R;
     using Domain = D;
 
+    //! The storage type for the polynomial coefficients
 #if HAVE_QUADMATH
-    using HP = Dune::Float128;
+    using ST = Dune::Float128;
 #else
-    using HP = long double;
+    using ST = long double;
 #endif
 
+    //! The type used internally for evaluation the polynomials
+    using CT = ST;
+
+    // The coefficients for the Lobatto kernel polynomials
     auto const& coefficients (unsigned int k) const
     {
-      static const HP coeffs[18][18] = {
+      static const ST coeffs[18][18] = {
         {-1},
         {-2, 1},
         {-5, 5, -1},
@@ -60,7 +66,7 @@ namespace Dune
       return coeffs[k];
     }
 
-    // kernel function for the Lobatto shape functions for x in [0,1]
+    //! kernel function for the Lobatto shape functions for x in [0,1]
     Range phi (unsigned int k, Domain x) const
     {
       using std::sqrt;
@@ -68,17 +74,19 @@ namespace Dune
 
       assert(k < 18);
       auto const& c = coefficients(k);
-      auto const factor = HP(2) / sqrt(HP(2)/HP(2*(k+2)-1));
+      auto const factor = CT(2) / sqrt(CT(2)/CT(2*(k+2)-1));
 
       // horner scheme for the evaluation
-      HP x0 = x;
-      HP y = c[0];
+      CT x0 = x;
+      CT y = c[0];
       for (unsigned int i = 1; i <= k; ++i)
         y = fma(y, x0, c[i]); // y = y*x + c[i]
 
       return y * factor;
     }
 
+    //! First derivative of the kernel function
+    //! The return tuple contains the value, and first derivative
     std::pair<Range,Range> dphi (unsigned int k, Domain x) const
     {
       using std::sqrt;
@@ -86,7 +94,7 @@ namespace Dune
 
       assert(k < 18);
       auto const& c = coefficients(k);
-      auto const factor = HP(2) / sqrt(HP(2)/HP(2*(k+2)-1));
+      auto const factor = CT(2) / sqrt(CT(2)/CT(2*(k+2)-1));
 
       switch (k) {
         case 0:
@@ -97,12 +105,12 @@ namespace Dune
           return {((c[0]*x+c[1])*x+c[2])*factor, (2*c[0]*x+c[1])*factor};
         default: {
           // horner scheme for the evaluation
-          HP x0 = x;
-          HP y = c[0];
-          HP dy = 0;
+          CT x0 = x;
+          CT y = c[0];
+          CT dy = 0;
           for (unsigned int i = 1; i <= k; ++i) {
             dy = fma(dy, x0, y);    // dy = dy*x + y
-            y = fma(y, x0, c[i]);  // y = y*x + c[i]
+            y = fma(y, x0, c[i]);   // y = y*x + c[i]
           }
 
           return {y * factor, dy * factor};
@@ -110,6 +118,8 @@ namespace Dune
       }
     }
 
+    //! Second derivative of the kernel function.
+    //! The return tuple contains the value, first, and second derivative
     std::tuple<Range,Range,Range> d2phi (unsigned int k, Domain x) const
     {
       using std::sqrt;
@@ -117,7 +127,7 @@ namespace Dune
 
       assert(k < 18);
       auto const& c = coefficients(k);
-      auto const factor = HP(2) / sqrt(HP(2)/HP(2*(k+2)-1));
+      auto const factor = CT(2) / sqrt(CT(2)/CT(2*(k+2)-1));
 
       switch (k) {
         case 0:
@@ -128,14 +138,14 @@ namespace Dune
           return {((c[0]*x+c[1])*x+c[2])*factor, (2*c[0]*x+c[1])*factor, 2*c[0]*factor};
         default: {
           // horner scheme for the evaluation
-          HP x0 = x;
-          HP y = c[0];
-          HP dy = 0;
-          HP d2y = 0;
+          CT x0 = x;
+          CT y = c[0];
+          CT dy = 0;
+          CT d2y = 0;
           for (unsigned int i = 1; i <= k; ++i) {
-            d2y = fma(d2y, x0, dy);  // d2y = d2y*x + dy
+            d2y = fma(d2y, x0, dy); // d2y = d2y*x + dy
             dy = fma(dy, x0, y);    // dy = dy*x + y
-            y = fma(y, x0, c[i]);  // y = y*x + c[i]
+            y = fma(y, x0, c[i]);   // y = y*x + c[i]
           }
 
           return {y * factor, dy * factor, 2*d2y * factor};
@@ -143,7 +153,7 @@ namespace Dune
       }
     }
 
-    // Evaluation of the Lobatto shape functions for x in [0,1]
+    //! Evaluation of the Lobatto shape functions for x in [0,1]
     Range operator() (unsigned int k, Domain x) const
     {
       assert(k < 20);
@@ -154,7 +164,7 @@ namespace Dune
       }
     }
 
-    // Evaluation of the derivative of Lobatto shape functions for x in [0,1]
+    //! Evaluation of the derivative of Lobatto shape functions for x in [0,1]
     Range d (unsigned int k, Domain x) const
     {
       assert(k < 20);
@@ -169,7 +179,7 @@ namespace Dune
       }
     }
 
-    // Evaluation of the second derivative of Lobatto shape functions for x in [0,1]
+    //! Evaluation of the second derivative of Lobatto shape functions for x in [0,1]
     Range d2 (unsigned int k, Domain x) const
     {
       assert(k < 20);
