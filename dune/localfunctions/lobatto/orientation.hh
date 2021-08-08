@@ -26,7 +26,7 @@ namespace Dune
     std::array<BitSetVector<3>, dim-1> orientation_;
 
   public:
-    explicit Orientation (GeometryType type = GeometryTypes::none)
+    explicit Orientation (GeometryType type = GeometryTypes::none(dim))
       : type_(type)
     {
       auto refElem = referenceElement<double,dim>(type_);
