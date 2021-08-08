@@ -35,6 +35,11 @@ namespace Dune { namespace Impl
 
   //! Lobatto shape functions of arbitrary order on cube elements
    /**
+    * The implementation is based on
+    *
+    *   "Higher-Order Finite Element Methods", P. Soling, K, Segeth, I. Dolezel,
+    *   2004, Chapman & Hall/CRC
+    *
     * \tparam D    Type to represent the field in the domain
     * \tparam R    Type to represent the field in the range
     * \tparam dim  Dimension of the domain cube
