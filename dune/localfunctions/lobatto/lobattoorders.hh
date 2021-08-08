@@ -46,14 +46,15 @@ namespace Dune
     GeometryType type_;
 
   public:
-    explicit constexpr LobattoOrdersBase (GeometryType type = GeometryTypes::none)
+    explicit constexpr LobattoOrdersBase (GeometryType type = GeometryTypes::none(dim))
       : type_{type}
     {}
 
     //! Return the polynomial order on the `k`th basis function on the `i`th entity of codim `c`
-    constexpr unsigned int operator() (unsigned int i, int c, unsigned int k = 0) const
+    constexpr std::uint8_t operator() (unsigned int i, int c, unsigned int k = 0) const
     {
-      return static_cast<const Derived&>(*this).order(i,c,k);
+      const Derived& self = static_cast<const Derived&>(*this);
+      return self.get(i,c,k);
     }
 
     //! Total number of DOFs
@@ -137,10 +138,16 @@ namespace Dune
     }
 
     //! Return the polynomial order on the `k`th basis function on the `i`th entity pf codim `c`
-    constexpr unsigned int order (unsigned int i, int c, unsigned int k) const
+    constexpr std::uint8_t get (unsigned int i, int c, unsigned int k) const
     {
       assert(i == 0); assert(c == 0); assert(k == 0);
       return pb_[0];
+    }
+
+    constexpr void set (unsigned int i, int c, unsigned int k, std::uint8_t p)
+    {
+      assert(i == 0); assert(c == 0); assert(k == 0);
+      pb_[0] = p;
     }
   };
 
@@ -191,21 +198,16 @@ namespace Dune
       : Super{type}
       , pb_{pb}
       , pe_{pe}
-    {
-      maxP_ = std::accumulate(pb_.begin(), pb_.end(), 0u,
-        [](unsigned int m, unsigned int p) { return std::max(m, p); });
-      maxP_ = std::accumulate(pe_.begin(), pe_.end(), maxP_,
-        [](unsigned int m, unsigned int p) { return std::max(m, p); });
-    }
+    {}
 
     //! Maximal polynomial order
     unsigned int max () const
     {
-      return maxP_;
+      return std::max({pb_[0], pb_[1], pe_[0], pe_[1], pe_[2], pe_[3]});
     }
 
     //! Return the polynomial order on the `k`th basis function on the `i`th entity pf codim `c`
-    constexpr unsigned int order (unsigned int i, int c, unsigned int k) const
+    constexpr std::uint8_t get (unsigned int i, int c, unsigned int k) const
     {
       switch (c) {
         case 0: return pb_[k];
@@ -216,10 +218,18 @@ namespace Dune
       }
     }
 
+    constexpr void set (unsigned int i, int c, unsigned int k, std::uint8_t p)
+    {
+      switch (c) {
+        case 0: pb_[k] = p; break;
+        case 1: pe_[i] = p; break;
+      }
+    }
+
     friend std::ostream& operator<< (std::ostream& out, LobattoOrders const& orders)
     {
       using namespace Debug;
-      out << "pb=" << orders.pb_ << ", pe=" << orders.pe_ << ", " << "maxP=" << int(orders.maxP_);
+      out << "pb=" << orders.pb_ << ", pe=" << orders.pe_ << ", " << "maxP=" << int(orders.max());
       return out;
     }
   };
@@ -243,7 +253,6 @@ namespace Dune
     std::array<std::uint8_t, 3> pb_{};
     std::array<std::array<std::uint8_t,2>, 6> pf_{};
     std::array<std::uint8_t, 12> pe_{};
-    std::uint8_t maxP_ = 0;
 
   public:
     constexpr LobattoOrders () = default;
@@ -297,24 +306,21 @@ namespace Dune
       , pb_{pb}
       , pf_{pf}
       , pe_{pe}
-    {
-      maxP_ = std::accumulate(pb_.begin(), pb_.end(), 0u,
-        [](unsigned int m, unsigned int p) { return std::max(m, p); });
-      maxP_ = std::accumulate(pf_.begin(), pf_.end(), maxP_,
-        [](unsigned int m, std::array<std::uint8_t,2> const& p) {
-          return std::max({m, (unsigned int)(p[0]), (unsigned int)(p[1])}); });
-      maxP_ = std::accumulate(pe_.begin(), pe_.end(), maxP_,
-        [](unsigned int m, unsigned int p) { return std::max(m, p); });
-    }
+    {}
 
     //! Maximal polynomial order
     constexpr unsigned int max () const
     {
-      return maxP_;
+      unsigned int maxP = std::max({pb_[0], pb_[1], pb_[2]});
+      for (auto const& p : pf_)
+        maxP = std::max({maxP, (unsigned int)(p[0]), (unsigned int)(p[1])});
+      for (unsigned int p : pe_)
+        maxP = std::max(maxP, p);
+      return maxP;
     }
 
     //! Return the polynomial order on the `k`th basis function on the `i`th entity pf codim `c`
-    constexpr unsigned int order (unsigned int i, int c, unsigned int k) const
+    constexpr std::uint8_t get (unsigned int i, int c, unsigned int k) const
     {
       switch (c) {
         case 0: return pb_[k];
@@ -326,11 +332,20 @@ namespace Dune
       }
     }
 
+    constexpr void set (unsigned int i, int c, unsigned int k, std::uint8_t p)
+    {
+      switch (c) {
+        case 0: pb_[k] = p;     break;
+        case 1: pf_[i][k] = p;  break;
+        case 2: pe_[i] = p;     break;
+      }
+    }
+
     friend std::ostream& operator<< (std::ostream& out, LobattoOrders const& orders)
     {
       using namespace Debug;
       out << "pb=" << orders.pb_ << ", pf=[" << orders.pf_ << ", pe=[" << orders.pe_ << ", "
-             "maxP=" << int(orders.maxP_);
+             "maxP=" << int(orders.max());
       return out;
     }
   };
@@ -357,7 +372,7 @@ namespace Dune
     //! Set the polynomial order on all entities to `p`
     explicit constexpr LobattoHomogeneousOrders (GeometryType type, unsigned int p = 1)
       : Super{type}
-      , p_{p}
+      , p_{std::uint8_t(p)}
     {}
 
     //! Maximal polynomial order
@@ -367,9 +382,14 @@ namespace Dune
     }
 
     //! Return the polynomial order on the `k`th basis function on the `i`th entity pf codim `c`
-    constexpr unsigned int order (unsigned int /*i*/, int /*c*/, unsigned int /*k*/) const
+    constexpr std::uint8_t get (unsigned int /*i*/, int /*c*/, unsigned int /*k*/) const
     {
       return p_;
+    }
+
+    constexpr void set (unsigned int /*i*/, int /*c*/, unsigned int /*k*/, std::uint8_t p)
+    {
+      p_ = p;
     }
 
     friend std::ostream& operator<< (std::ostream& out, LobattoHomogeneousOrders const& orders)

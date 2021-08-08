@@ -43,7 +43,7 @@ namespace Dune
         for (int i = 0; i < refElem.size(codim); ++i) {
           std::vector<IndexType> v(refElem.size(i,codim,dim));
           for (int ii = 0; ii < refElem.size(i,codim,dim); ++ii)
-            v[ii] = vertices[refElem.subEntity(i,c,ii,dim)];
+            v[ii] = vertices[refElem.subEntity(i,codim,ii,dim)];
           init(refElem.type(i,codim), i, codim, v);
         }
       }
