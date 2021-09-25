@@ -11,6 +11,7 @@
 
 #include <dune/geometry/referenceelement.hh>
 #include <dune/geometry/type.hh>
+#include <dune/localfunctions/lobatto/geometry.hh>
 
 namespace Dune
 {
@@ -80,7 +81,7 @@ namespace Dune
     //! Number of DOFs associated to the i'th entity of codim c
     constexpr unsigned int size (unsigned int i, int c) const
     {
-      GeometryType t referenceElement<double,dim>(type_).type(i,c);
+      GeometryType t = referenceElement<double,dim>(type_).type(i,c);
       switch (dim-c) {
         case 1:
           return LobattoGeometry::size(t, (*this)(i,c,0));
