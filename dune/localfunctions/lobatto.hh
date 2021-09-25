@@ -4,4 +4,5 @@
     \brief Convenience header that includes all available Lobatto LocalFiniteElements
  */
 
+#include <dune/localfunctions/lobatto/geometry.hh>
 #include <dune/localfunctions/lobatto/lobattocube.hh>

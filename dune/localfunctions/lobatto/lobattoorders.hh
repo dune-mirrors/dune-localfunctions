@@ -80,10 +80,17 @@ namespace Dune
     //! Number of DOFs associated to the i'th entity of codim c
     constexpr unsigned int size (unsigned int i, int c) const
     {
-      unsigned int s = 1;
-      for (int k = 0; k < dim-c; ++k)
-        s *= std::max(0,int((*this)(i,c,k))-1); // NOTE: This is currently only valid for cubes
-      return s;
+      GeometryType t referenceElement<double,dim>(type_).type(i,c);
+      switch (dim-c) {
+        case 1:
+          return LobattoGeometry::size(t, (*this)(i,c,0));
+        case 2:
+          return LobattoGeometry::size(t, (*this)(i,c,0), (*this)(i,c,1));
+        case 3:
+          return LobattoGeometry::size(t, (*this)(i,c,0), (*this)(i,c,1), (*this)(i,c,2));
+        default:
+          return 1u;
+      }
     }
   };
 

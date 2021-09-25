@@ -1,5 +1,6 @@
 install(FILES
   common.hh
+  geometry.hh
   lobatto.hh
   lobattocube.hh
   lobattoorders.hh
