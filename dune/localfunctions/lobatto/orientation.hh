@@ -16,8 +16,9 @@
 
 namespace Dune
 {
-  //! Representation of the orientation of all sub-entities of a real element in the grid relative
-  //! to the orientation of a reference element
+  //! Representation of the orientation of all sub-entities with `0 < codim < dim`
+  //! of a real element with dimension `dim` in the grid relative to the orientation
+  //! of a reference element
   template <int dim>
   class Orientation
   {
@@ -118,7 +119,7 @@ namespace Dune
 
         // o(1) = (-1)^orientation_[2]
         if (C < B)
-          orientation_[codim-1][2] = true;
+          orientation_[codim-1][i][2] = true;
       }
       else if (dim-codim == 2 && type.isCube())
       {
