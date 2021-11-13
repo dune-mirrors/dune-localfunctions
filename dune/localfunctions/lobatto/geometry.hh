@@ -26,6 +26,10 @@ namespace Dune
         return (p0-1)*(p1-1);
       else if (type.isHexahedron())
         return (p0-1)*(p1-1)*(p2-1);
+      else if (type.isTriangle())
+        return (p0-1)*(p1-2)/2;
+      else if (type.isTetrahedron())
+        return (p0-1)*(p1-2)*(p2-3)/6;
       else {
         DUNE_THROW(Dune::NotImplemented, "Number of DOFs for GeometryType " << type);
         return 0;

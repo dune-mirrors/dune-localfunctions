@@ -6,3 +6,4 @@
 
 #include <dune/localfunctions/lobatto/geometry.hh>
 #include <dune/localfunctions/lobatto/lobattocube.hh>
+#include <dune/localfunctions/lobatto/lobattosimplex.hh>
