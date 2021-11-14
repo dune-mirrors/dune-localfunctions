@@ -1,7 +1,7 @@
 // -*- tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 2 -*-
 // vi: set et ts=4 sw=2 sts=2:
-#ifndef DUNE_LOCALFUNCTIONS_LOBATTO_LOBATTOSIMPLEX_HH
-#define DUNE_LOCALFUNCTIONS_LOBATTO_LOBATTOSIMPLEX_HH
+#ifndef DUNE_LOCALFUNCTIONS_LOBATTO_SIMPLEX_HH
+#define DUNE_LOCALFUNCTIONS_LOBATTO_SIMPLEX_HH
 
 #include <algorithm>
 #include <array>
@@ -24,7 +24,7 @@
 #include <dune/localfunctions/common/localkey.hh>
 #include <dune/localfunctions/lobatto/common.hh>
 #include <dune/localfunctions/lobatto/lobatto.hh>
-#include <dune/localfunctions/lobatto/lobattoorders.hh>
+#include <dune/localfunctions/lobatto/orders.hh>
 #include <dune/localfunctions/lobatto/orientation.hh>
 
 namespace Dune { namespace Impl
@@ -48,8 +48,6 @@ namespace Dune { namespace Impl
   template<class D, class R, unsigned int dim, class Orders>
   class LobattoSimplexLocalBasis
   {
-    friend class LobattoSimplexLocalInterpolation<LobattoSimplexLocalBasis<D,R,dim,Orders> >;
-
     Orders orders_{};
     Lobatto<R,D> lobatto_{};
     Orientation<dim> o_{};
@@ -72,6 +70,12 @@ namespace Dune { namespace Impl
     unsigned int size () const
     {
       return orders_.size();
+    }
+
+    ///! return the association of polynomial orders to subentities
+    const Orders& orders () const
+    {
+      return orders_;
     }
 
     //! Evaluate all shape functions
@@ -155,20 +159,14 @@ namespace Dune { namespace Impl
                    lobatto_.phi(k - 2, out[3] - out[2]);
 
         // TODO: Can this be optimized?
-        auto face_orientation = [&](int i, auto const& indices)
-          -> std::array<unsigned, 3>
+        auto face_orientation = [&](int i, std::array<int, 3> indices)
+          -> std::array<int, 3>
         {
-          assert((o_(i,1,2) == 1) || (o_(i,1,2) == -1));
-          int unsigned first, second, third;
-          if (o_(i,1,2) == -1) {
-            first = o_(i,1,0);
-            second = (first + 2) % 3;
-            third = (first + 1) % 3;
-          } else if (o_(i,1,2) == 1) {
-            first = o_(i,1,0);
-            second = (first + 1) % 3;
-            third = (first + 2) % 3;
-          }
+          assert((std::abs(o_(i,1,2)) == 1));
+          const int a = o_(i,1,0);
+          auto[first, second, third] = (o_(i,1,2) == -1)
+            ? std::array{a, (a + 2) % 3, (a + 1) % 3}
+            : std::array{a, (a + 1) % 3, (a + 2) % 3};
           return {indices.at(first), indices.at(second), indices.at(third)};
         };
 
@@ -177,8 +175,7 @@ namespace Dune { namespace Impl
         // the DUNE ordering?
         for (int n1 = 1; n1 <= orders_(0,1,0) - 2; ++n1) {
           for (int n2 = 1; n1 + n2 <= orders_(0,1,0) - 1; ++n2, ++i) {
-            std::array<unsigned int, 3> ind{0,1,2};
-            auto o = face_orientation(0, ind);
+            auto o = face_orientation(0, {0,1,2});
             out[i] = out[0] * out[1] * out[2] *
                      lobatto_.phi(n1 - 1, out[o[1]] - out[o[0]]) *
                      lobatto_.phi(n2 - 1, out[o[2]] - out[o[0]]);
@@ -186,8 +183,7 @@ namespace Dune { namespace Impl
         }
         for (int n1 = 1; n1 <= orders_(1,1,0) - 2; ++n1) {
           for (int n2 = 1; n1 + n2 <= orders_(1,1,0) - 1; ++n2, ++i) {
-            std::array<unsigned int, 3> ind{0,1,3};
-            auto o = face_orientation(1, ind);
+            auto o = face_orientation(1, {0,1,3});
             out[i] = out[0] * out[1] * out[3] *
                      lobatto_.phi(n1 - 1, out[o[1]] - out[o[0]]) *
                      lobatto_.phi(n2 - 1, out[o[2]] - out[o[0]]);
@@ -195,8 +191,7 @@ namespace Dune { namespace Impl
         }
         for (int n1 = 1; n1 <= orders_(2,1,0) - 2; ++n1) {
           for (int n2 = 1; n1 + n2 <= orders_(2,1,0) - 1; ++n2, ++i) {
-            std::array<unsigned int, 3> ind{0,2,3};
-            auto o = face_orientation(2, ind);
+            auto o = face_orientation(2, {0,2,3});
             out[i] = out[0] * out[2] * out[3] *
                      lobatto_.phi(n1 - 1, out[o[1]] - out[o[0]]) *
                      lobatto_.phi(n2 - 1, out[o[2]] - out[o[0]]);
@@ -204,8 +199,7 @@ namespace Dune { namespace Impl
         }
         for (int n1 = 1; n1 <= orders_(3,1,0) - 2; ++n1) {
           for (int n2 = 1; n1 + n2 <= orders_(3,1,0) - 1; ++n2, ++i) {
-            std::array<unsigned int, 3> ind{1,2,3};
-            auto o = face_orientation(3, ind);
+            auto o = face_orientation(3, {1,2,3});
             out[i] = out[1] * out[2] * out[3] *
                      lobatto_.phi(n1 - 1, out[o[1]] - out[o[0]]) *
                      lobatto_.phi(n2 - 1, out[o[2]] - out[o[0]]);
@@ -416,20 +410,14 @@ namespace Dune { namespace Impl
         }
 
         // TODO: Can this be optimized?
-        auto face_orientation = [&](int i, auto const& indices)
-          -> std::array<unsigned, 3>
+        auto face_orientation = [&](int i, std::array<int,3> indices)
+          -> std::array<int,3>
         {
-          assert((o_(i,1,2) == 1) || (o_(i,1,2) == -1));
-          int unsigned first, second, third;
-          if (o_(i,1,2) == -1) {
-            first = o_(i,1,0);
-            second = (first + 2) % 3;
-            third = (first + 1) % 3;
-          } else if (o_(i,1,2) == 1) {
-            first = o_(i,1,0);
-            second = (first + 1) % 3;
-            third = (first + 2) % 3;
-          }
+          assert((std::abs(o_(i,1,2)) == 1));
+          const int a = o_(i,1,0);
+          auto[first, second, third] = (o_(i,1,2) == -1)
+            ? std::array{a, (a + 2) % 3, (a + 1) % 3}
+            : std::array{a, (a + 1) % 3, (a + 2) % 3};
           return {indices.at(first), indices.at(second), indices.at(third)};
         };
 
@@ -453,8 +441,7 @@ namespace Dune { namespace Impl
 
         for (int n1 = 1; n1 <= orders_(0,1,0) - 2; ++n1) {
           for (int n2 = 1; n1 + n2 <= orders_(0,1,0) - 1; ++n2, ++i) {
-            std::array<int, 3> ind{0,1,2};
-            auto o = face_orientation(0, ind);
+            auto o = face_orientation(0, {0,1,2});
             out[i][0][0] = face_Jacobian(o, 0, n1, n2);
             out[i][0][1] = face_Jacobian(o, 1, n1, n2);
             out[i][0][2] = face_Jacobian(o, 2, n1, n2);
@@ -462,8 +449,7 @@ namespace Dune { namespace Impl
         }
         for (int n1 = 1; n1 <= orders_(1,1,0) - 2; ++n1) {
           for (int n2 = 1; n1 + n2 <= orders_(1,1,0) - 1; ++n2, ++i) {
-            std::array<int, 3> ind{0,1,3};
-            auto o = face_orientation(1, ind);
+            auto o = face_orientation(1, {0,1,3});
             out[i][0][0] = face_Jacobian(o, 0, n1, n2);
             out[i][0][1] = face_Jacobian(o, 1, n1, n2);
             out[i][0][2] = face_Jacobian(o, 2, n1, n2);
@@ -471,8 +457,7 @@ namespace Dune { namespace Impl
         }
         for (int n1 = 1; n1 <= orders_(2,1,0) - 2; ++n1) {
           for (int n2 = 1; n1 + n2 <= orders_(2,1,0) - 1; ++n2, ++i) {
-            std::array<int, 3> ind{0,2,3};
-            auto o = face_orientation(2, ind);
+            auto o = face_orientation(2, {0,2,3});
             out[i][0][0] = face_Jacobian(o, 0, n1, n2);
             out[i][0][1] = face_Jacobian(o, 1, n1, n2);
             out[i][0][2] = face_Jacobian(o, 2, n1, n2);
@@ -480,8 +465,7 @@ namespace Dune { namespace Impl
         }
         for (int n1 = 1; n1 <= orders_(3,1,0) - 2; ++n1) {
           for (int n2 = 1; n1 + n2 <= orders_(3,1,0) - 1; ++n2, ++i) {
-            std::array<int, 3> ind{1,2,3};
-            auto o = face_orientation(3, ind);
+            auto o = face_orientation(3, {1,2,3});
             out[i][0][0] = face_Jacobian(o, 0, n1, n2);
             out[i][0][1] = face_Jacobian(o, 1, n1, n2);
             out[i][0][2] = face_Jacobian(o, 2, n1, n2);
@@ -633,106 +617,6 @@ namespace Dune { namespace Impl
     }
   };
 
-  //! Evaluate the degrees of freedom of a Lagrange basis
-  /**
-   * \tparam LocalBasis  The corresponding set of shape functions
-   */
-  template<class LocalBasis>
-  class LobattoSimplexLocalInterpolation
-  {
-    LocalBasis localBasis_;
-
-  public:
-    LobattoSimplexLocalInterpolation (LocalBasis const& localBasis)
-      : localBasis_(localBasis)
-    {}
-
-    //! Evaluate a given function at the Lagrange nodes
-    /**
-     * \tparam F Type of function to evaluate
-     * \tparam C Type used for the values of the function
-     *
-     * \param[in] ff Function to evaluate
-     * \param[out] out Array of function values
-     */
-    template<class F, class C>
-    void interpolate (const F& ff, std::vector<C>& out) const
-    {
-      out.resize(localBasis_.size());
-
-      const unsigned int dim = LocalBasis::Traits::dimDomain;
-      using D = typename LocalBasis::Traits::DomainFieldType;
-      using R = typename LocalBasis::Traits::RangeFieldType;
-      using RangeType = typename LocalBasis::Traits::RangeType;
-      std::vector<RangeType> shapeValues;
-
-      auto refElem = referenceElement<D,dim>(GeometryTypes::simplex(dim));
-      auto const& orders = localBasis_.orders_;
-
-      auto&& f = Impl::makeFunctionWithCallOperator<typename LocalBasis::Traits::DomainType>(ff);
-
-      unsigned int idx = 0;
-
-      // vertex functions
-      if (const unsigned int sv = orders.size(dim); sv > 0) {
-        for (; idx < sv; ++idx)
-          out[idx] = f(refElem.position(idx,dim));
-      }
-
-      auto subEntityInterpolate = [&](auto codim) {
-        // traverse all subEntities
-        unsigned int shift = 0;
-        for (int i = 0; i < refElem.size(codim); ++i) {
-          // make the subEntity projection for (f - fh_v)
-          if (const unsigned int se = orders.size(i,codim); se > 0) {
-            DynamicMatrix<R> A(se,se, 0.0);
-            DynamicVector<R> b(se, 0.0);
-            auto localRefElem = refElem.template geometry<codim>(i);
-            for (auto const& qp : QuadratureRules<D,dim-codim>::rule(refElem.type(i,codim), 2*orders.max()))
-            {
-              auto&& local = localRefElem.global(qp.position());
-              localBasis_.evaluateFunction(local, shapeValues);
-              RangeType fAtQP = f(local);
-
-              // sum up over all computed coefficients
-              RangeType fhAtQP = 0;
-              for (unsigned int k = 0; k < idx; ++k)
-                fhAtQP.axpy(out[k], shapeValues[k]);
-
-              // assemble projection system on reference element
-              for (unsigned int l1 = 0; l1 < se; ++l1) {
-                for (unsigned int l2 = 0; l2 < se; ++l2) {
-                  A[l1][l2] += inner(shapeValues[idx+shift+l1],shapeValues[idx+shift+l2]) * qp.weight();
-                }
-                b[l1] += inner(difference(fAtQP, fhAtQP), shapeValues[idx+shift+l1]) * qp.weight();
-              }
-            }
-
-            DynamicVector<R> coeff(se);
-            A.solve(coeff, b);
-
-            for (unsigned int i = 0; i < se; ++i,++shift)
-              out[idx+shift] = coeff[i];
-          }
-        }
-        idx += shift;
-      };
-
-      // edge interpolation
-      if constexpr(dim > 1) {
-        subEntityInterpolate(std::integral_constant<int,dim-1>{});
-      }
-
-      // face interpolation
-      if constexpr(dim > 2) {
-        subEntityInterpolate(std::integral_constant<int,dim-2>{});
-      }
-
-      // interior interpolation
-      subEntityInterpolate(std::integral_constant<int,0>{});
-    }
-  };
-
 } }    // namespace Dune::Impl
 
 namespace Dune
@@ -749,7 +633,7 @@ namespace Dune
   {
     using LB = Impl::LobattoSimplexLocalBasis<D,R,dim,Orders>;
     using LC = Impl::LobattoSimplexLocalCoefficients<dim,Orders>;
-    using LI = Impl::LobattoSimplexLocalInterpolation<LB>;
+    using LI = LobattoLocalL2Interpolation<LB>;
 
   public:
     //! Export number types, dimensions, etc.
@@ -759,7 +643,7 @@ namespace Dune
     LobattoSimplexLocalFiniteElement (const Orders& orders, const Orientation<dim>& orientation)
       : basis_(orders, orientation)
       , coefficients_(orders)
-      , interpolation_(basis_)
+      , interpolation_(GeometryTypes::simplex(dim), basis_)
     {}
 
     //! Construct a local finite-element of given orders with default orientation
@@ -810,4 +694,4 @@ namespace Dune
 
 } // end namespace Dune
 
-#endif // DUNE_LOCALFUNCTIONS_LOBATTO_LOBATTOSIMPLEX_HH
+#endif // DUNE_LOCALFUNCTIONS_LOBATTO_SIMPLEX_HH

@@ -22,7 +22,7 @@ int main ()
     std::cout << " 1d Simplex " << std::endl;
     // define type of considered elements
     auto simplex1 = Dune::GeometryTypes::simplex(1);
-    auto refElem = Dune::ReferenceElements<double, 1>::general(simplex1);
+
     // initialize local finite element with lobatto shape functions on
     // simplex
     Dune::LobattoSimplexLocalFiniteElement<double, double, 1> lobattoSimplex1d_p1{1};

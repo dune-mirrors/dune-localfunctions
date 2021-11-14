@@ -5,7 +5,7 @@
 #include <dune/common/test/testsuite.hh>
 #include <dune/geometry/quadraturerules.hh>
 #include <dune/localfunctions/lobatto/lobatto.hh>
-#include <dune/localfunctions/lobatto/lobattocube.hh>
+#include <dune/localfunctions/lobatto/cube.hh>
 #include <dune/localfunctions/test/test-localfe.hh>
 
 template <class T>

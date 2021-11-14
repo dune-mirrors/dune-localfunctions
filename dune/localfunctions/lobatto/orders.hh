@@ -1,7 +1,7 @@
 // -*- tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 2 -*-
 // vi: set et ts=4 sw=2 sts=2:
-#ifndef DUNE_LOCALFUNCTIONS_LOBATTO_LOBATTOORDERS_HH
-#define DUNE_LOCALFUNCTIONS_LOBATTO_LOBATTOORDERS_HH
+#ifndef DUNE_LOCALFUNCTIONS_LOBATTO_ORDERS_HH
+#define DUNE_LOCALFUNCTIONS_LOBATTO_ORDERS_HH
 
 #include <algorithm>
 #include <array>
@@ -409,4 +409,4 @@ namespace Dune
 
 } // end namespace Dune
 
-#endif // DUNE_LOCALFUNCTIONS_LOBATTO_LOBATTOORDERS_HH
+#endif // DUNE_LOCALFUNCTIONS_LOBATTO_ORDERS_HH
