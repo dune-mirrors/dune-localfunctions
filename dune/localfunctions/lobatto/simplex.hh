@@ -158,21 +158,19 @@ namespace Dune { namespace Impl
           out[i] = edge_sign(k, 5) * out[2] * out[3] *
                    lobatto_.phi(k - 2, out[3] - out[2]);
 
-        // TODO: Can this be optimized?
+        // compute vertex permutation corresponding to global vertex numbering
         auto face_orientation = [&](int i, std::array<int, 3> indices)
           -> std::array<int, 3>
         {
           assert((std::abs(o_(i,1,2)) == 1));
-          const int a = o_(i,1,0);
-          auto[first, second, third] = (o_(i,1,2) == -1)
-            ? std::array{a, (a + 2) % 3, (a + 1) % 3}
-            : std::array{a, (a + 1) % 3, (a + 2) % 3};
+          const int first = o_(i,1,0); // start vertex
+          const auto[second, third] = (o_(i,1,2) == -1)
+            ? std::array{(first + 2) % 3, (first + 1) % 3}
+            : std::array{(first + 1) % 3, (first + 2) % 3};
           return {indices.at(first), indices.at(second), indices.at(third)};
         };
 
         // face functions
-        // TODO: This is the ordering according to the book, does it fit with
-        // the DUNE ordering?
         for (int n1 = 1; n1 <= orders_(0,1,0) - 2; ++n1) {
           for (int n2 = 1; n1 + n2 <= orders_(0,1,0) - 1; ++n2, ++i) {
             auto o = face_orientation(0, {0,1,2});
@@ -409,15 +407,15 @@ namespace Dune { namespace Impl
                           l[2] * l[3] * lobatto_.dphi(k - 2, l[3] - l[2]).second);
         }
 
-        // TODO: Can this be optimized?
+        // compute vertex permutation corresponding to global vertex numbering
         auto face_orientation = [&](int i, std::array<int,3> indices)
           -> std::array<int,3>
         {
           assert((std::abs(o_(i,1,2)) == 1));
-          const int a = o_(i,1,0);
-          auto[first, second, third] = (o_(i,1,2) == -1)
-            ? std::array{a, (a + 2) % 3, (a + 1) % 3}
-            : std::array{a, (a + 1) % 3, (a + 2) % 3};
+          const int first = o_(i,1,0);
+          const auto[second, third] = (o_(i,1,2) == -1)
+            ? std::array{(first + 2) % 3, (first + 1) % 3}
+            : std::array{(first + 1) % 3, (first + 2) % 3};
           return {indices.at(first), indices.at(second), indices.at(third)};
         };
 
