@@ -90,6 +90,14 @@ namespace Dune
       return 1;
     }
 
+    void debug () const
+    {
+      auto refElem = referenceElement<double,dim>(type_);
+      for (int codim = 1; codim < dim; ++codim)
+        for (int i = 0; i < refElem.size(codim); ++i)
+          std::cout << "o(" << i << ", " << codim << ") = " << (*this)(i,codim) << std::endl;
+    }
+
   private:
     // initialize the orientation on the `i`th sub-entity of codim `codim`
     template <class IndexType>

@@ -400,6 +400,12 @@ namespace Impl {
       return impl_;
     }
 
+    // Return mutable access to the underlying std::variant
+    auto& variant()
+    {
+      return impl_;
+    }
+
     /**
      * \brief Check if LocalFiniteElementVariant stores an implementation
      *

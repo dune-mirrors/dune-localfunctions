@@ -2,6 +2,8 @@ install(FILES
   common.hh
   cube.hh
   geometry.hh
+  interpolation.hh
+  line.hh
   lobatto.hh
   orders.hh
   orientation.hh

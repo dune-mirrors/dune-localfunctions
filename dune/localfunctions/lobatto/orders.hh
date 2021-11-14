@@ -367,7 +367,7 @@ namespace Dune
     using Super = LobattoOrdersBase<LobattoHomogeneousOrders<dim>, dim>;
 
   private:
-    std::uint8_t p_ = 0;
+    std::uint8_t p_ = 1;
 
   public:
     constexpr LobattoHomogeneousOrders () = default;

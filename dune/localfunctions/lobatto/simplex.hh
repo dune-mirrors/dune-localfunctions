@@ -8,31 +8,21 @@
 #include <numeric>
 #include <vector>
 
-#include <dune/common/dynmatrix.hh>
-#include <dune/common/dynvector.hh>
-#include <dune/common/filledarray.hh>
 #include <dune/common/fmatrix.hh>
 #include <dune/common/fvector.hh>
-#include <dune/common/math.hh>
-
-#include <dune/geometry/quadraturerules.hh>
-#include <dune/geometry/referenceelements.hh>
 
 #include <dune/localfunctions/common/localbasis.hh>
 #include <dune/localfunctions/common/localfiniteelementtraits.hh>
 #include <dune/localfunctions/common/localinterpolation.hh>
 #include <dune/localfunctions/common/localkey.hh>
 #include <dune/localfunctions/lobatto/common.hh>
+#include <dune/localfunctions/lobatto/line.hh>
 #include <dune/localfunctions/lobatto/lobatto.hh>
 #include <dune/localfunctions/lobatto/orders.hh>
 #include <dune/localfunctions/lobatto/orientation.hh>
 
 namespace Dune { namespace Impl
 {
-  // Forward declaration
-  template<class LocalBasis>
-  class LobattoSimplexLocalInterpolation;
-
   //! Lobatto shape functions of arbitrary order on simplex elements
    /**
     * The implementation is based on
@@ -84,14 +74,7 @@ namespace Dune { namespace Impl
     {
       out.resize(size());
       if constexpr(dim == 1) {
-        // vertex functions
-        out[0] = lobatto_(0,x);
-        out[1] = lobatto_(1,x);
-
-        // interior bubble functions
-        for (unsigned int k = 2; k <= orders_(0,0); ++k)
-          out[k] = lobatto_(k,x);
-
+        DUNE_THROW(Dune::NotImplemented, "See specialization for Line geometry.");
       }
       else if constexpr(dim == 2) {
         // vertex functions
@@ -229,13 +212,7 @@ namespace Dune { namespace Impl
       out.resize(size());
 
       if constexpr(dim == 1) {
-        // vertex functions
-        out[0][0][0] = lobatto_.d(0,x);
-        out[1][0][0] = lobatto_.d(1,x);
-
-        // interior bubble functions
-        for (unsigned int k = 2; k <= orders_(0,0,0); ++k)
-          out[k][0] = lobatto_.d(k,x);
+        DUNE_THROW(Dune::NotImplemented, "See specialization for Line geometry.");
       }
       else if constexpr(dim == 2) {
         std::array<Range, 3> l = {1 - (x[0] + x[1]),
@@ -527,6 +504,17 @@ namespace Dune { namespace Impl
     }
   };
 
+  template<class D, class R, class Orders>
+  class LobattoSimplexLocalBasis<D,R,1,Orders>
+    : public LobattoLineLocalBasis<D,R,Orders>
+  {
+  public:
+    LobattoSimplexLocalBasis (const Orders& orders, const Orientation<1>&)
+      : LobattoLineLocalBasis<D,R,Orders>{orders}
+    {}
+  };
+
+
   //! Associations of the Lobatto degrees of freedom to subentities of the reference simplex
   /**
    * \tparam dim Dimension of the reference simplex
@@ -544,13 +532,7 @@ namespace Dune { namespace Impl
       , localKeys_(orders_.size())
     {
       if constexpr(dim == 1) {
-        // vertex functions
-        localKeys_[0] = LocalKey(0,dim,0);
-        localKeys_[1] = LocalKey(1,dim,0);
-
-        // interior bubble functions
-        for (unsigned int k = 2; k <= orders_(0,0,0); ++k)
-          localKeys_[k] = LocalKey(0,0,k-2);
+        DUNE_THROW(Dune::NotImplemented, "See specialization for Line geometry.");
       }
       else if constexpr(dim == 2) {
         // vertex functions
@@ -615,6 +597,16 @@ namespace Dune { namespace Impl
     }
   };
 
+  template<class Orders>
+  class LobattoSimplexLocalCoefficients<1,Orders>
+    : public LobattoLineLocalCoefficients<Orders>
+  {
+  public:
+    LobattoSimplexLocalCoefficients (const Orders& orders)
+      : LobattoLineLocalCoefficients<Orders>{orders}
+    {}
+  };
+
 } }    // namespace Dune::Impl
 
 namespace Dune
@@ -670,6 +662,12 @@ namespace Dune
     const typename Traits::LocalInterpolationType& localInterpolation () const
     {
       return interpolation_;
+    }
+
+    template <class Element>
+    void bind (const Element& element)
+    {
+      interpolation_.bind(element);
     }
 
     //! The number of shape functions
