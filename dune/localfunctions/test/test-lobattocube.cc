@@ -52,7 +52,7 @@ int main (int argc, char **argv)
 
       // check definition of kernel function: l_k(x) = l_0(x) * l_1(x) * phi_{k-2}(x)
       testSuite.check(almost_equal_or_print(l_x,
-        lobatto(0,qp.position())*lobatto(1,qp.position())*lobatto.phi(k-2,qp.position())), "l_" + std::to_string(k) + "=l_0*l_1*phi_" + std::to_string(k-2));
+        lobatto(0,qp.position())*lobatto(1,qp.position())*lobatto.phi_(k-2,qp.position())), "l_" + std::to_string(k) + "=l_0*l_1*phi_" + std::to_string(k-2));
 
       // check symmetry
       if (k % 2 == 0) {
@@ -66,14 +66,14 @@ int main (int argc, char **argv)
   // check some explicit values:
   // --------------------------------------------------------------------------
   // kernel function phi_k(x)
-  testSuite.check(almost_equal_or_print(lobatto.phi(2,0.25), -0.233853586673371), "phi_2(0.25)");
-  testSuite.check(almost_equal_or_print(lobatto.phi(2,0.5),   0.935414346693485), "phi_2(0.5)");
-  testSuite.check(almost_equal_or_print(lobatto.phi(3,0.25), -0.662912607362388), "phi_3(0.25)");
-  testSuite.check(almost_equal_or_print(lobatto.phi(4,0.25),  0.696233589348790), "phi_4(0.25)");
-  testSuite.check(almost_equal_or_print(lobatto.phi(4,0.5),  -0.586301969977929), "phi_4(0.5)");
-  testSuite.check(almost_equal_or_print(lobatto.phi(5,0.25), -0.139426314824803), "phi_5(0.25)");
-  testSuite.check(almost_equal_or_print(lobatto.phi(6,0.25), -0.386454636520979), "phi_6(0.25)");
-  testSuite.check(almost_equal_or_print(lobatto.phi(6,0.5),   0.427908248050911), "phi_6(0.5)");
+  testSuite.check(almost_equal_or_print(lobatto.phi_(2,0.25), -0.233853586673371), "phi_2(0.25)");
+  testSuite.check(almost_equal_or_print(lobatto.phi_(2,0.5),   0.935414346693485), "phi_2(0.5)");
+  testSuite.check(almost_equal_or_print(lobatto.phi_(3,0.25), -0.662912607362388), "phi_3(0.25)");
+  testSuite.check(almost_equal_or_print(lobatto.phi_(4,0.25),  0.696233589348790), "phi_4(0.25)");
+  testSuite.check(almost_equal_or_print(lobatto.phi_(4,0.5),  -0.586301969977929), "phi_4(0.5)");
+  testSuite.check(almost_equal_or_print(lobatto.phi_(5,0.25), -0.139426314824803), "phi_5(0.25)");
+  testSuite.check(almost_equal_or_print(lobatto.phi_(6,0.25), -0.386454636520979), "phi_6(0.25)");
+  testSuite.check(almost_equal_or_print(lobatto.phi_(6,0.5),   0.427908248050911), "phi_6(0.5)");
 
   // --------------------------------------------------------------------------
   // lobatto function l_k(x)

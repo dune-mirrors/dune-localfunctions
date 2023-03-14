@@ -41,20 +41,36 @@ def evaluate (expr):
 for k in range(0,18):
   _k = sympify(k)
   f = 2/sqrt(2/(2*(_k+2)-1))
+  phi_k_x = simplify(phi(k,x)/f)
+  print('phi(',k,', x): ',phi_k_x.as_poly(x).all_coeffs(),', f=',f)
+
+print("--------------------")
+
+for k in range(0,18):
+  _k = sympify(k)
+  f = 2/sqrt(2/(2*(_k+2)-1))
   phi_k_x = simplify(phi_(k,x)/f)
-  print('phi(',k,', x): ',phi_k_x.as_poly(x).all_coeffs())
+  print('phi_(',k,', x): ',phi_k_x.as_poly(x).all_coeffs())
 
 print("--------------------")
 
 
 # test the Lobatto polynomials by evaluation
 for k in range(2,7):
-  phi_k_x = simplify(phi_(k,x))
-  dphi_k_x = simplify(phi_(k,x).diff(x))
-  d2phi_k_x = simplify(phi_(k,x).diff(x,x))
+  phi_k_x = simplify(phi(k,x))
+  dphi_k_x = simplify(phi(k,x).diff(x))
+  d2phi_k_x = simplify(phi(k,x).diff(x,x))
   print('phi(',k,', x): ',evaluate(phi_k_x))
   print('dphi(',k,', x): ',evaluate(dphi_k_x))
   print('d2phi(',k,', x): ',evaluate(d2phi_k_x))
+
+for k in range(2,7):
+  phi_k_x = simplify(phi_(k,x))
+  dphi_k_x = simplify(phi_(k,x).diff(x))
+  d2phi_k_x = simplify(phi_(k,x).diff(x,x))
+  print('phi_(',k,', x): ',evaluate(phi_k_x))
+  print('dphi_(',k,', x): ',evaluate(dphi_k_x))
+  print('d2phi_(',k,', x): ',evaluate(d2phi_k_x))
 
   l_k_x = simplify(l_(k,x))
   dl_k_x = simplify(l_(k,x).diff(x))

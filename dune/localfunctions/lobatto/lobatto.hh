@@ -67,7 +67,7 @@ namespace Dune
     }
 
     //! kernel function for the Lobatto shape functions for x in [0,1]
-    Range phi (unsigned int k, Domain x) const
+    Range phi_ (unsigned int k, Domain x) const
     {
       using std::sqrt;
       using std::fma;
@@ -85,9 +85,14 @@ namespace Dune
       return y * factor;
     }
 
+    Range phi (unsigned int k, Domain x) const
+    {
+      return phi_(k,(x+1)/2);
+    }
+
     //! First derivative of the kernel function
     //! The return tuple contains the value, and first derivative
-    std::pair<Range,Range> dphi (unsigned int k, Domain x) const
+    std::pair<Range,Range> dphi_ (unsigned int k, Domain x) const
     {
       using std::sqrt;
       using std::fma;
@@ -118,9 +123,15 @@ namespace Dune
       }
     }
 
+    std::pair<Range,Range> dphi (unsigned int k, Domain x) const
+    {
+      auto d = dphi_(k,(x+1)/2);
+      return {d.first, d.second/2};
+    }
+
     //! Second derivative of the kernel function.
     //! The return tuple contains the value, first, and second derivative
-    std::tuple<Range,Range,Range> d2phi (unsigned int k, Domain x) const
+    std::tuple<Range,Range,Range> d2phi_ (unsigned int k, Domain x) const
     {
       using std::sqrt;
       using std::fma;
@@ -153,6 +164,12 @@ namespace Dune
       }
     }
 
+    std::tuple<Range,Range,Range> d2phi (unsigned int k, Domain x) const
+    {
+      auto d2 = d2phi_(k,(x+1)/2);
+      return {std::get<0>(d2), std::get<1>(d2)/2, std::get<2>(d2)/4};
+    }
+
     //! Evaluation of the Lobatto shape functions for x in [0,1]
     Range operator() (unsigned int k, Domain x) const
     {
@@ -160,7 +177,7 @@ namespace Dune
       switch (k) {
         case 0:  return R(1) - x;
         case 1:  return x;
-        default: return (R(1) - x) * x * phi(k-2, x);
+        default: return (R(1) - x) * x * phi_(k-2, x);
       }
     }
 
@@ -171,9 +188,9 @@ namespace Dune
       switch (k) {
         case 0: return R(-1);
         case 1: return R(1);
-        case 2: return (R(1) - R(2)*x) * phi(k-2, x);
+        case 2: return (R(1) - R(2)*x) * phi_(k-2, x);
         default: {
-          auto [p,dp] = dphi(k-2, x);
+          auto [p,dp] = dphi_(k-2, x);
           return (R(1) - R(2)*x) * p + (R(1) - x) * x * dp;
         }
       }
@@ -186,13 +203,13 @@ namespace Dune
       switch (k) {
         case 0: return R(0);
         case 1: return R(0);
-        case 2: return -R(2)*phi(k-2, x);
+        case 2: return -R(2)*phi_(k-2, x);
         case 3: {
-          auto [p,dp] = dphi(k-2, x);
+          auto [p,dp] = dphi_(k-2, x);
           return -R(2) * p + 2*(R(1)-R(2)*x) * dp;
         }
         default: {
-          auto [p,dp,d2p] = d2phi(k-2, x);
+          auto [p,dp,d2p] = d2phi_(k-2, x);
           return -R(2) * p + 2*(R(1)-R(2)*x) * dp + (R(1)-x)*x * d2p;
         }
       }
