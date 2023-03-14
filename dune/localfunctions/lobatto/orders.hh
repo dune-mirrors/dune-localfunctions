@@ -17,31 +17,6 @@
 
 namespace Dune
 {
-  namespace Debug
-  {
-    template <std::size_t n>
-    std::ostream& operator<< (std::ostream& out, std::array<std::uint8_t,n> const& p)
-    {
-      out << "[" << int(p[0]);
-      for (std::size_t i = 1; i < n; ++i)
-        out << ", " << int(p[i]);
-      out << "]";
-      return out;
-    }
-
-    template <std::size_t n>
-    std::ostream& operator<< (std::ostream& out, std::array<std::array<std::uint8_t,2>,n> const& p)
-    {
-      out << "[" << p[0];
-      for (std::size_t i = 1; i < n; ++i)
-        out << ", " << p[i];
-      out << "]";
-      return out;
-    }
-
-  } // end namespace Debug
-
-
   //! CRTP Base class for Lobatto orders containers
   template <class Derived, int dim>
   class LobattoOrdersBase
@@ -235,13 +210,6 @@ namespace Dune
         case 1: pe_[i] = p; break;
       }
     }
-
-    friend std::ostream& operator<< (std::ostream& out, LobattoOrders const& orders)
-    {
-      using namespace Debug;
-      out << "pb=" << orders.pb_ << ", pe=" << orders.pe_ << ", " << "maxP=" << int(orders.max());
-      return out;
-    }
   };
 
   // Specialization for 3d
@@ -350,14 +318,6 @@ namespace Dune
         case 2: pe_[i] = p;     break;
       }
     }
-
-    friend std::ostream& operator<< (std::ostream& out, LobattoOrders const& orders)
-    {
-      using namespace Debug;
-      out << "pb=" << orders.pb_ << ", pf=[" << orders.pf_ << ", pe=[" << orders.pe_ << ", "
-             "maxP=" << int(orders.max());
-      return out;
-    }
   };
 
   //! Polynomial order container that implements the same polynomial order on all parts
@@ -400,12 +360,6 @@ namespace Dune
     constexpr void set (unsigned int /*i*/, int /*c*/, unsigned int /*k*/, std::uint8_t p)
     {
       p_ = p;
-    }
-
-    friend std::ostream& operator<< (std::ostream& out, LobattoHomogeneousOrders const& orders)
-    {
-      out << "p=" << int(orders.p_);
-      return out;
     }
   };
 

@@ -43,7 +43,7 @@ namespace Dune { namespace Impl
     using Dimensions = typename Range::integer_sequence;
 
   public:
-    IntegrationElements(GeometryType type)
+    explicit IntegrationElements(GeometryType type)
       : type_{type}
     {
       // initialize the mapping with `return 1.0`
@@ -55,6 +55,7 @@ namespace Dune { namespace Impl
       });
     }
 
+    // store functions to compute the integration elements
     template <class Element>
     void bind (const Element& element)
     {
@@ -71,8 +72,9 @@ namespace Dune { namespace Impl
       });
     }
 
+    // return the integration element function of the `i`th entity of codimension `codim`.
     template <int c>
-    auto& operator()(std::integral_constant<int,c> codim, int i) const
+    auto& operator()(int i, std::integral_constant<int,c> codim) const
     {
       return std::get<dim-c>(mappings_)[i];
     }
@@ -157,7 +159,7 @@ public:
       // traverse all subEntities
       unsigned int shift = 0;
       for (int i = 0; i < refElem.size(codim); ++i) {
-        auto&& integrationElement = integrationElements_(codim,i);
+        auto&& integrationElement = integrationElements_(i,codim);
         auto&& quad = QuadratureRules<D,dim-codim>::rule(refElem.type(i,codim), 2*orders.max());
         auto localRefElem = refElem.template geometry<codim>(i);
 
