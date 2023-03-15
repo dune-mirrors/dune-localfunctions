@@ -117,75 +117,57 @@ namespace Dune { namespace Impl
         out[2] = x[1];
         out[3] = x[2];
 
+        int unsigned i = 4;
+
         auto const edge_sign = [&](unsigned int k, int i)
         {
           return power(o_(i,2,0), k);
         };
 
-        int unsigned i = 4;
         // edge functions
-        for (unsigned k = 2; k <= orders_(0,2); ++k, ++i)
-          out[i] = edge_sign(k, 0) * out[0] * out[1] *
-                   lobatto_.phi(k - 2, out[1] - out[0]);
-        for (unsigned k = 2; k <= orders_(1,2); ++k, ++i)
-          out[i] = edge_sign(k, 1) * out[0] * out[2] *
-                   lobatto_.phi(k - 2, out[2] - out[0]);
-        for (unsigned k = 2; k <= orders_(2,2); ++k, ++i)
-          out[i] = edge_sign(k, 2) * out[1] * out[2] *
-                   lobatto_.phi(k - 2, out[2] - out[1]);
-        for (unsigned k = 2; k <= orders_(3,2); ++k, ++i)
-          out[i] = edge_sign(k, 3) * out[0] * out[3] *
-                   lobatto_.phi(k - 2, out[3] - out[0]);
-        for (unsigned k = 2; k <= orders_(4,2); ++k, ++i)
-          out[i] = edge_sign(k, 4) * out[1] * out[3] *
-                   lobatto_.phi(k - 2, out[3] - out[1]);
-        for (unsigned k = 2; k <= orders_(5,2); ++k, ++i)
-          out[i] = edge_sign(k, 5) * out[2] * out[3] *
-                   lobatto_.phi(k - 2, out[3] - out[2]);
+        static const std::array<std::array<int,2>,6> edges = {{
+          {0,1},{0,2},{1,2},{0,3},{1,3},{2,3}
+        }};
+        for (unsigned e = 0; e < edges.size(); ++e) {
+          for (unsigned k = 2; k <= orders_(e,2); ++k, ++i)
+            out[i] = edge_sign(k, e) * out[edges[e][1]] * out[edges[e][0]] *
+                   lobatto_.phi(k - 2, out[edges[e][1]] - out[edges[e][0]]);
+        }
 
         // compute vertex permutation corresponding to global vertex numbering
         auto face_orientation = [&](int i, std::array<int, 3> indices)
           -> std::array<int, 3>
         {
-          assert((std::abs(o_(i,1,2)) == 1));
+          assert((std::abs(o_(i,1,1)) == 1));
           const int first = o_(i,1,0); // start vertex
-          const auto[second, third] = (o_(i,1,2) == -1)
+          const auto[second, third] = (o_(i,1,1) == -1)
             ? std::array{(first + 2) % 3, (first + 1) % 3}
             : std::array{(first + 1) % 3, (first + 2) % 3};
           return {indices.at(first), indices.at(second), indices.at(third)};
         };
 
         // face functions
-        for (int n1 = 1; n1 <= orders_(0,1,0) - 2; ++n1) {
-          for (int n2 = 1; n1 + n2 <= orders_(0,1,0) - 1; ++n2, ++i) {
-            auto o = face_orientation(0, {0,1,2});
-            out[i] = out[0] * out[1] * out[2] *
-                     lobatto_.phi(n1 - 1, out[o[1]] - out[o[0]]) *
-                     lobatto_.phi(n2 - 1, out[o[2]] - out[o[0]]);
-          }
-        }
-        for (int n1 = 1; n1 <= orders_(1,1,0) - 2; ++n1) {
-          for (int n2 = 1; n1 + n2 <= orders_(1,1,0) - 1; ++n2, ++i) {
-            auto o = face_orientation(1, {0,1,3});
-            out[i] = out[0] * out[1] * out[3] *
-                     lobatto_.phi(n1 - 1, out[o[1]] - out[o[0]]) *
-                     lobatto_.phi(n2 - 1, out[o[2]] - out[o[0]]);
-          }
-        }
-        for (int n1 = 1; n1 <= orders_(2,1,0) - 2; ++n1) {
-          for (int n2 = 1; n1 + n2 <= orders_(2,1,0) - 1; ++n2, ++i) {
-            auto o = face_orientation(2, {0,2,3});
-            out[i] = out[0] * out[2] * out[3] *
-                     lobatto_.phi(n1 - 1, out[o[1]] - out[o[0]]) *
-                     lobatto_.phi(n2 - 1, out[o[2]] - out[o[0]]);
-          }
-        }
-        for (int n1 = 1; n1 <= orders_(3,1,0) - 2; ++n1) {
-          for (int n2 = 1; n1 + n2 <= orders_(3,1,0) - 1; ++n2, ++i) {
-            auto o = face_orientation(3, {1,2,3});
-            out[i] = out[1] * out[2] * out[3] *
-                     lobatto_.phi(n1 - 1, out[o[1]] - out[o[0]]) *
-                     lobatto_.phi(n2 - 1, out[o[2]] - out[o[0]]);
+        auto face_function = [&](auto const& o, int n1, int n2)
+        {
+          assert(o.size() == 3);
+
+          auto L = out[o[0]] * out[o[1]] * out[o[2]];
+          auto phi1 = lobatto_.phi(n1 - 1, out[o[1]] - out[o[0]]);
+          auto phi2 = lobatto_.phi(n2 - 1, out[o[2]] - out[o[0]]);
+
+          return L * phi1 * phi2;
+        };
+
+        // face functions
+        static const std::array<std::array<int,3>,4> faces = {{
+          {0,1,2},{0,1,3},{0,2,3},{1,2,3}
+        }};
+        for (unsigned f = 0; f < faces.size(); ++f) {
+          for (int n1 = 1; n1 <= orders_(f,1,0) - 2; ++n1) {
+            for (int n2 = 1; n1 + n2 <= orders_(f,1,0) - 1; ++n2, ++i) {
+              auto o = face_orientation(f, faces[f]);
+              out[i] = face_function(o, n1, n2);
+            }
           }
         }
 
@@ -317,161 +299,95 @@ namespace Dune { namespace Impl
         out[3][0][1] = 0;
         out[3][0][2] = 1;
 
-        auto const edge_sign = [&](unsigned int k, int i)
+        unsigned int i = 4;
+
+        // edge functions
+        auto edge_sign = [&](unsigned int k, int i)
         {
           return power(o_(i,2,0), k);
         };
+        auto edge_Jacobian = [&](int sign, std::array<int,2> o, int dx_i, int k)
+        {
+          auto L = l[o[0]] * l[o[1]];
+          auto dL = l[o[1]] * out[o[0]][0][dx_i] +
+                    l[o[0]] * out[o[1]][0][dx_i];
+          auto [phi,dphi] = lobatto_.dphi(k - 2, l[o[1]] - l[o[0]]);
+          return sign * (L * dphi * (out[o[1]][0][dx_i] - out[o[0]][0][dx_i]) + dL * phi);
+        };
 
-        unsigned int i = 4;
-        // edge functions
-        for (unsigned int k = 2; k <= orders_(0,2); ++k, ++i) {
-          out[i][0][0] = edge_sign(k,0) *
-                         ((l[0] - l[1]) * lobatto_.phi(k - 2, l[1] - l[0]) +
-                          2 * l[0] * l[1] *
-                          lobatto_.dphi(k - 2, l[1] - l[0]).second);
-          out[i][0][1] = edge_sign(k,0) *
-                         (-l[1] * lobatto_.phi(k - 2, l[1] - l[0]) +
-                          l[0] * l[1] * lobatto_.dphi(k - 2, l[1] - l[0]).second);
-          out[i][0][2] = edge_sign(k,0) *
-                         (-l[1] * lobatto_.phi(k - 2, l[1] - l[0]) +
-                          l[0] * l[1] * lobatto_.dphi(k - 2, l[1] - l[0]).second);
+        static const std::array<std::array<int,2>,6> edges = {{
+          {0,1},{0,2},{1,2},{0,3},{1,3},{2,3}
+        }};
+        for (unsigned e = 0; e < edges.size(); ++e) {
+          for (unsigned int k = 2; k <= orders_(e,2); ++k, ++i) {
+            int sign = edge_sign(k,e);
+            out[i][0][0] = edge_Jacobian(sign,edges[e],0,k);
+            out[i][0][1] = edge_Jacobian(sign,edges[e],1,k);
+            out[i][0][2] = edge_Jacobian(sign,edges[e],2,k);
+          }
         }
-        for (unsigned int k = 2; k <= orders_(1,2); ++k, ++i) {
-          out[i][0][0] = edge_sign(k,1) *
-                         (-l[2] * lobatto_.phi(k - 2, l[2] - l[0]) +
-                          l[0] * l[2] * lobatto_.dphi(k - 2, l[2] - l[0]).second);
-          out[i][0][1] = edge_sign(k,1) *
-                         ((l[0] - l[2]) * lobatto_.phi(k - 2, l[2] - l[0]) +
-                          2 * l[0] * l[2] * lobatto_.dphi(k - 2, l[2] - l[0]).second);
-          out[i][0][2] = edge_sign(k,1) *
-                         (-l[2] * lobatto_.phi(k - 2, l[2] - l[0]) +
-                          l[0] * l[2] * lobatto_.dphi(k - 2, l[2] - l[0]).second);
-        }
-        for (unsigned int k = 2; k <= orders_(2,2); ++k, ++i) {
-          out[i][0][0] = edge_sign(k,2) *
-                         (l[2] * lobatto_.phi(k - 2, l[2] - l[1]) -
-                          l[1] * l[2] * lobatto_.dphi(k - 2, l[2] - l[1]).second);
-          out[i][0][1] = edge_sign(k,2) *
-                         (l[1] * lobatto_.phi(k - 2, l[2] - l[1]) +
-                          l[1] * l[2] * lobatto_.dphi(k - 2, l[2] - l[1]).second);
-          out[i][0][2] = 0;
-        }
-        for (unsigned int k = 2; k <= orders_(3,2); ++k, ++i) {
-          out[i][0][0] = edge_sign(k,3) *
-                         (-l[3] * lobatto_.phi(k - 2, l[3] - l[0]) +
-                          l[0] * l[3] * lobatto_.dphi(k - 2, l[3] - l[0]).second);
-          out[i][0][1] = edge_sign(k,3) *
-                         (-l[3] * lobatto_.phi(k - 2, l[3] - l[0]) +
-                          l[0] * l[3] * lobatto_.dphi(k -2, l[3] - l[0]).second);
-          out[i][0][2] = edge_sign(k,3) *
-                         ((l[0] - l[3]) * lobatto_.phi(k - 2, l[3] - l[0]) +
-                          2 * l[0] * l[3] * lobatto_.dphi(k - 2, l[3] - l[0]).second);
-        }
-        for (unsigned int k = 2; k <= orders_(4,2); ++k, ++i) {
-          out[i][0][0] = edge_sign(k,4) *
-                         (l[3] * lobatto_.phi(k - 2, l[3] - l[1]) -
-                          l[1] * l[3] * lobatto_.dphi(k - 2, l[3] - l[1]).second);
-          out[i][0][1] = 0;
-          out[i][0][2] = edge_sign(k,4) *
-                         (l[1] * lobatto_.phi(k - 2, l[3] - l[1]) +
-                          l[1] * l[3] * lobatto_.dphi(k - 2, l[3] - l[1]).second);
-        }
-        for (unsigned int k = 2; k <= orders_(5,2); ++k, ++i) {
-          out[i][0][0] = 0;
-          out[i][0][1] = edge_sign(k,5) *
-                         (l[3] * lobatto_.phi(k - 2, l[3] - l[2]) -
-                          l[2] * l[3] * lobatto_.dphi(k - 2, l[3] - l[2]).second);
-          out[i][0][2] = edge_sign(k,5) *
-                         (l[2] * lobatto_.phi(k - 2, l[3] - l[2]) +
-                          l[2] * l[3] * lobatto_.dphi(k - 2, l[3] - l[2]).second);
-        }
+
+        // face functions
 
         // compute vertex permutation corresponding to global vertex numbering
         auto face_orientation = [&](int i, std::array<int,3> indices)
           -> std::array<int,3>
         {
-          assert((std::abs(o_(i,1,2)) == 1));
+          assert((std::abs(o_(i,1,1)) == 1));
           const int first = o_(i,1,0);
-          const auto[second, third] = (o_(i,1,2) == -1)
+          const auto[second, third] = (o_(i,1,1) == -1)
             ? std::array{(first + 2) % 3, (first + 1) % 3}
             : std::array{(first + 1) % 3, (first + 2) % 3};
           return {indices.at(first), indices.at(second), indices.at(third)};
         };
-
-        // face functions
         auto face_Jacobian = [&](auto const& o, int dx_i, int n1, int n2)
         {
           assert(o.size() == 3);
-          return (lobatto_.phi(n1 - 1, l[o[1]] - l[o[0]]) *
-                 lobatto_.phi(n2 - 1, l[o[2]] - l[o[0]]) *
-                 (l[o[1]] * l[o[2]] * out[o[0]][0][dx_i] +
-                  l[o[0]] * l[o[2]] * out[o[1]][0][dx_i] +
-                  l[o[0]] * l[o[1]] * out[o[2]][0][dx_i]) +
-                 l[o[0]] * l[o[1]] * l[o[2]] *
-                 (lobatto_.dphi(n1 - 1, l[o[1]] - l[o[0]]).second *
-                  (out[o[1]][0][dx_i] - out[o[0]][0][dx_i]) *
-                  lobatto_.phi(n2 - 1, l[o[2]] - l[o[0]]) +
-                  lobatto_.phi(n1 - 1, l[o[1]] - l[o[0]]) *
-                  lobatto_.dphi(n2 - 1, l[o[2]] - l[o[0]]).second *
-                  (out[o[2]][0][dx_i] - out[o[0]][0][dx_i])));
+
+          auto L = l[o[0]] * l[o[1]] * l[o[2]];
+          auto dL = l[o[1]] * l[o[2]] * out[o[0]][0][dx_i] +
+                    l[o[0]] * l[o[2]] * out[o[1]][0][dx_i] +
+                    l[o[0]] * l[o[1]] * out[o[2]][0][dx_i];
+
+          auto [phi1,dphi1] = lobatto_.dphi(n1 - 1, l[o[1]] - l[o[0]]);
+          auto [phi2,dphi2] = lobatto_.dphi(n2 - 1, l[o[2]] - l[o[0]]);
+
+          return L * ((dphi1 * phi2)*(out[o[1]][0][dx_i] - out[o[0]][0][dx_i]) +
+                      (phi1 * dphi2)*(out[o[2]][0][dx_i] - out[o[0]][0][dx_i]))
+               + dL * (phi1 * phi2);
         };
 
-        for (int n1 = 1; n1 <= orders_(0,1,0) - 2; ++n1) {
-          for (int n2 = 1; n1 + n2 <= orders_(0,1,0) - 1; ++n2, ++i) {
-            auto o = face_orientation(0, {0,1,2});
-            out[i][0][0] = face_Jacobian(o, 0, n1, n2);
-            out[i][0][1] = face_Jacobian(o, 1, n1, n2);
-            out[i][0][2] = face_Jacobian(o, 2, n1, n2);
-          }
-        }
-        for (int n1 = 1; n1 <= orders_(1,1,0) - 2; ++n1) {
-          for (int n2 = 1; n1 + n2 <= orders_(1,1,0) - 1; ++n2, ++i) {
-            auto o = face_orientation(1, {0,1,3});
-            out[i][0][0] = face_Jacobian(o, 0, n1, n2);
-            out[i][0][1] = face_Jacobian(o, 1, n1, n2);
-            out[i][0][2] = face_Jacobian(o, 2, n1, n2);
-          }
-        }
-        for (int n1 = 1; n1 <= orders_(2,1,0) - 2; ++n1) {
-          for (int n2 = 1; n1 + n2 <= orders_(2,1,0) - 1; ++n2, ++i) {
-            auto o = face_orientation(2, {0,2,3});
-            out[i][0][0] = face_Jacobian(o, 0, n1, n2);
-            out[i][0][1] = face_Jacobian(o, 1, n1, n2);
-            out[i][0][2] = face_Jacobian(o, 2, n1, n2);
-          }
-        }
-        for (int n1 = 1; n1 <= orders_(3,1,0) - 2; ++n1) {
-          for (int n2 = 1; n1 + n2 <= orders_(3,1,0) - 1; ++n2, ++i) {
-            auto o = face_orientation(3, {1,2,3});
-            out[i][0][0] = face_Jacobian(o, 0, n1, n2);
-            out[i][0][1] = face_Jacobian(o, 1, n1, n2);
-            out[i][0][2] = face_Jacobian(o, 2, n1, n2);
+        static const std::array<std::array<int,3>,4> faces = {{
+          {0,1,2},{0,1,3},{0,2,3},{1,2,3}
+        }};
+        for (unsigned f = 0; f < faces.size(); ++f) {
+          for (int n1 = 1; n1 <= orders_(f,1,0) - 2; ++n1) {
+            for (int n2 = 1; n1 + n2 <= orders_(f,1,0) - 1; ++n2, ++i) {
+              auto o = face_orientation(f, faces[f]);
+              out[i][0][0] = face_Jacobian(o, 0, n1, n2);
+              out[i][0][1] = face_Jacobian(o, 1, n1, n2);
+              out[i][0][2] = face_Jacobian(o, 2, n1, n2);
+            }
           }
         }
 
         // interior bubble function
         auto bubble_Jacobian = [&](int dx_i, int n1, int n2, int n3)
         {
-          return l[0] * l[1] * l[2] * l[3] *
-                 (lobatto_.dphi(n1 - 1, l[1] - l[0]).second *
-                  (out[1][0][dx_i] - out[0][0][dx_i]) *
-                  lobatto_.phi(n2 - 1, l[2] - l[0]) *
-                  lobatto_.phi(n3 - 1, l[3] - l[0]) +
-                  lobatto_.phi(n1 - 1, l[1] - l[0]) *
-                  lobatto_.dphi(n2 - 1, l[2] - l[0]).second *
-                  (out[2][0][dx_i] - out[0][0][dx_i]) *
-                  lobatto_.phi(n3 - 1, l[3] - l[0]) *
-                  lobatto_.phi(n1 - 1, l[1] - l[0]) *
-                  lobatto_.phi(n2 - 1, l[2] - l[0]) *
-                  lobatto_.dphi(n3 - 1, l[3] - l[0]).second *
-                  (out[3][0][dx_i] - out[0][0][dx_i])) +
-                 lobatto_.phi(n1 - 1, l[1] - l[0]) *
-                 lobatto_.phi(n2 - 1, l[2] - l[0]) *
-                 lobatto_.phi(n3 - 1, l[3] - l[0]) *
-                 (l[1] * l[2] * l[3] * out[0][0][dx_i] +
-                  l[0] * l[2] * l[3] * out[1][0][dx_i] +
-                  l[0] * l[1] * l[3] * out[2][0][dx_i] +
-                  l[0] * l[1] * l[2] * out[3][0][dx_i]);
+          auto L = l[0] * l[1] * l[2] * l[3];
+          auto dL = l[1] * l[2] * l[3] * out[0][0][dx_i] +
+                    l[0] * l[2] * l[3] * out[1][0][dx_i] +
+                    l[0] * l[1] * l[3] * out[2][0][dx_i] +
+                    l[0] * l[1] * l[2] * out[3][0][dx_i];
+
+          auto [phi1,dphi1] = lobatto_.dphi(n1 - 1, l[1] - l[0]);
+          auto [phi2,dphi2] = lobatto_.dphi(n2 - 1, l[2] - l[0]);
+          auto [phi3,dphi3] = lobatto_.dphi(n3 - 1, l[3] - l[0]);
+
+          return L * ((dphi1 * phi2 * phi3)*(out[1][0][dx_i] - out[0][0][dx_i]) +
+                      (phi1 * dphi2 * phi3)*(out[2][0][dx_i] - out[0][0][dx_i]) +
+                      (phi1 * phi2 * dphi3)*(out[3][0][dx_i] - out[0][0][dx_i]))
+               + dL * (phi1 * phi2 * phi3);
         };
 
         for (int n1 = 1; n1 <= orders_(0,0,0) - 3; ++n1) {

@@ -159,9 +159,12 @@ namespace Dune
     template <class IdType>
     void init (GeometryType type, int i, int codim, const std::vector<IdType>& v)
     {
+      // denote by p = reorient_[codim-1][i] the bitset<3> to encode the facet orientation
+
       if (dim-codim == 1 && type.isLine())
       {
-        // o(0) = (-1)^reorient_[0]
+        // encode in the first bit the orientation
+        // =>  o(0) = (-1)^p[0]
         reorient_[codim-1][i][0] = (v[1] < v[0]);
       }
       else if (dim-codim == 2 && type.isSimplex())
@@ -175,13 +178,18 @@ namespace Dune
         else
           B = neigh[A][1], C = neigh[A][0];
 
-        // o(0) == 1 * reorient_[0] + 2 * reorient_[1]
+        // encode the start-vertex by 2 bits in the last position of reorient_
+        // if A == 0: p = [0,0]
+        // if A == 1: p = [1,0]
+        // if A == 2: p = [0,1]
+        // =>  o(0) = A = 1 * p[0] + 2 * p[1]
         if (A == 1)
           reorient_[codim-1][i][0] = true;
         else if (A == 2)
           reorient_[codim-1][i][1] = true;
 
-        // o(1) = (-1)^reorient_[2]
+        // encode the orientation of the triangle in the third bit
+        // =>  o(1) = (-1)^p[2]
         if (C < B)
           reorient_[codim-1][i][2] = true;
       }
@@ -196,13 +204,13 @@ namespace Dune
         else
           B = neigh[A][1], C = neigh[A][0];
 
-        // o(0) = (-1)^reorient_[0]
+        // o(0) = (-1)^p[0]
         if (B < A)
           reorient_[codim-1][i][0] = true;
-        // o(1) = (-1)^reorient_[1]
+        // o(1) = (-1)^p[1]
         if (C < A)
           reorient_[codim-1][i][1] = true;
-        // o(2) = (-1)^reorient_[2]
+        // o(2) = (-1)^p[2]
         if (C < B)
           reorient_[codim-1][i][2] = true;
       }

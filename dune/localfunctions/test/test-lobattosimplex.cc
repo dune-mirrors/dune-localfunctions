@@ -21,14 +21,8 @@ int main ()
     // highest polynomial order to consider
     std::uint8_t maxOrder = 6;
 
-    // lobatto shape functions on simplex for the 1D and 2D case
-    // -> 3D not implemented
     std::cout << " 1d Simplex " << std::endl;
-    // define type of considered elements
     auto simplex1 = Dune::GeometryTypes::simplex(1);
-
-    // initialize local finite element with lobatto shape functions on
-    // simplex
     Dune::LobattoSimplexLocalFiniteElement<double, double, 1> lobattoSimplex1d_p1{1};
     testSuite.check(testFE(lobattoSimplex1d_p1, disableFlags),
                            "lobattoSimplex1d_p1");
@@ -60,8 +54,10 @@ int main ()
 
     std::cout << " 3d Simplex " << std::endl;
     auto simplex3 = Dune::GeometryTypes::simplex(3);
-    Dune::LobattoSimplexLocalFiniteElement<double,double, 3> lobattoSimplex3d_p1{1};
-    testSuite.check(testFE(lobattoSimplex3d_p1, disableFlags), "lobattoSimplex3d_p1");
+    Orientation<3> o3{simplex3, std::vector<double> {2,0,3,1}};
+    LobattoOrders<3> orders3{simplex3, 4};
+    Dune::LobattoSimplexLocalFiniteElement<double,double, 3> lobattoSimplex3d_reorient{orders3,o3};
+    testSuite.check(testFE(lobattoSimplex3d_reorient, disableFlags), "lobattoSimplex3d_reorient");
 
     for (std::uint8_t pb = 1; pb < maxOrder - 2; ++pb) {
       for (std::uint8_t pf = 1; pf <= pb; ++pf) {
