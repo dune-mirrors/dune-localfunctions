@@ -8,5 +8,5 @@ add_python_targets(localfunctions
 dune_add_pybind11_module(NAME _localfunctions)
 target_link_libraries(_localfunctions PUBLIC Dune::Common Dune::Geometry Dune::LocalFunctions)
 if(SKBUILD)
-  install(TARGETS _localfunctions LIBRARY DESTINATION python/dune/localfunctions)
+  install(TARGETS _localfunctions LIBRARY DESTINATION dune/localfunctions)
 endif()
