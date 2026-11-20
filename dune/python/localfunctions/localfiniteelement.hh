@@ -3,6 +3,8 @@
 #ifndef DUNE_PYTHON_LOCALFUNCTIONS_LOCALFINITEELEMENT_HH
 #define DUNE_PYTHON_LOCALFUNCTIONS_LOCALFINITEELEMENT_HH
 
+#include <vector>
+
 #include <dune/python/pybind11/pybind11.h>
 
 #include <dune/common/visibility.hh>
@@ -15,9 +17,21 @@ namespace Python {
 
 namespace detail {
 
+// Concept: check whether a LocalBasis provides an evaluateHessian method
+// and a corresponding HessianType in its traits
+template<typename LocalBasis>
+concept hasEvaluateHessian = requires(const LocalBasis& basis,
+                                     const typename LocalBasis::Traits::DomainType& in,
+                                     std::vector<typename LocalBasis::Traits::HessianType>& out)
+{
+  basis.evaluateHessian(in, out);
+};
+
 template<typename LocalBasis>
 DUNE_EXPORT auto registerLocalBasis(pybind11::handle scope)
 {
+  using pybind11::operator""_a;
+
   static auto cls = pybind11::class_<LocalBasis>(scope, "LocalBasis");
 
   cls.def("__len__", [](const LocalBasis& basis) { return basis.size(); });
@@ -34,6 +48,21 @@ DUNE_EXPORT auto registerLocalBasis(pybind11::handle scope)
             basis.evaluateJacobian(in, out);
             return out;
           });
+
+  if constexpr (hasEvaluateHessian<LocalBasis>)
+    cls.def("evaluateHessian",
+            [](const LocalBasis& basis, const typename LocalBasis::Traits::DomainType& in) {
+              std::vector<typename LocalBasis::Traits::HessianType> out;
+              basis.evaluateHessian(in, out);
+              return out;
+            }, "x"_a,  // The name is 'in' in C++, but in Python that's a reserved name.
+            R"doc(
+              Evaluate the Hessians of all shape functions at a point on the reference element
+
+              :param x: Point on the reference element at which to evaluate
+              :return: Hessians of all shape functions at `x`
+            )doc");
+
   return cls;
 }
 

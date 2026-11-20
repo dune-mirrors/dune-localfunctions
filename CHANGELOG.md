@@ -5,6 +5,11 @@ SPDX-License-Identifier: LicenseRef-GPL-2.0-only-with-DUNE-exception
 
 # Master (will become release 2.12)
 
+- The Python bindings for local bases now expose an `evaluateHessian` method
+  (with a named argument `x`) for all local bases whose C++ implementation
+  provides `evaluateHessian` (some bases from `dune-localfunctions` do this,
+  e.g., the Morley basis).
+
 - The `LagrangeLocalFiniteElementCache` now supports run-time order.
   Setting the compile-time order template parameter to the special indicator value `-1`
   allows to select the order at run-time by passing it as constructor argument.
