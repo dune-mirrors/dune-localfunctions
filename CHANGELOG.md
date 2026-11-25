@@ -5,6 +5,9 @@ SPDX-License-Identifier: LicenseRef-GPL-2.0-only-with-DUNE-exception
 
 # Master (will become release 2.12)
 
+- The Python bindings for local finite elements now expose the `localCoefficients`
+  method of a `LocalFiniteElement`.
+
 - The Python bindings for local bases now expose an `evaluateHessian` method
   (with a named argument `x`) for all local bases whose C++ implementation
   provides `evaluateHessian` (some bases from `dune-localfunctions` do this,

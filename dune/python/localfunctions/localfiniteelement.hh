@@ -66,6 +66,44 @@ DUNE_EXPORT auto registerLocalBasis(pybind11::handle scope)
   return cls;
 }
 
+template<typename LocalCoefficients>
+DUNE_EXPORT auto registerLocalCoefficients(pybind11::handle scope)
+{
+  using pybind11::operator""_a;
+
+  static auto cls = pybind11::class_<LocalCoefficients>(scope, "LocalCoefficients",
+    R"doc(
+      Assignment of the degrees of freedom of a local finite element to the
+      subentities of the reference element
+    )doc");
+
+  cls.def("__len__", [](const LocalCoefficients& lc) { return lc.size(); },
+          R"doc(
+            Number of degrees of freedom (local coefficients)
+
+            :return: The number of local coefficients
+          )doc");
+  cls.def("size", [](const LocalCoefficients& lc) { return lc.size(); },
+          R"doc(
+            Number of degrees of freedom (local coefficients)
+
+            :return: The number of local coefficients
+          )doc");
+  cls.def("localKey",
+          [](const LocalCoefficients& lc, std::size_t i) -> const LocalKey& {
+            return lc.localKey(i);
+          }, "i"_a, pybind11::return_value_policy::reference_internal,
+          R"doc(
+            Get the local key of the i-th degree of freedom, i.e. the subentity
+            of the reference element it is associated with
+
+            :param i: Index of the degree of freedom
+            :return: The i-th local key
+          )doc");
+
+  return cls;
+}
+
 DUNE_EXPORT auto registerLocalKey(pybind11::handle scope)
 {
   // static auto cls = pybind11::class_<LocalKey>(scope, "LocalKey");
@@ -95,7 +133,13 @@ DUNE_EXPORT auto registerLocalFiniteElement(pybind11::handle scope, const char* 
   detail::registerLocalBasis<typename LocalFiniteElement::Traits::LocalBasisType>(cls);
 
   cls.def_property_readonly("localBasis", &LocalFiniteElement::localBasis, pybind11::return_value_policy::reference_internal);
-  // cls.def_property_readonly("localCoefficients", &LocalFiniteElement::localCoefficients);
+
+  // Expose the localCoefficients method
+  detail::registerLocalCoefficients<typename LocalFiniteElement::Traits::LocalCoefficientsType>(cls);
+  cls.def_property_readonly("localCoefficients",
+                            &LocalFiniteElement::localCoefficients,
+                            pybind11::return_value_policy::reference_internal);
+
   // cls.def_property_readonly("localInterpolation", &LocalFiniteElement::localInterpolation);
   cls.def("__len__", [](const LocalFiniteElement& lf) { return lf.size(); });
   cls.def("size", [](const LocalFiniteElement& lf) { return lf.size(); });
