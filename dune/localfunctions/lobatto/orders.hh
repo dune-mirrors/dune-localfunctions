@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <compare>
 #include <cstdint>
 
 namespace Dune
@@ -130,7 +131,7 @@ namespace Dune
       return m;
     }
 
-    friend constexpr bool operator== (const LobattoOrders&, const LobattoOrders&) = default;
+    friend constexpr auto operator<=> (const LobattoOrders&, const LobattoOrders&) = default;
 
   private:
     // orders_[0][k]: interior order in direction k,
@@ -174,7 +175,7 @@ namespace Dune
       return p_;
     }
 
-    friend constexpr bool operator== (const LobattoHomogeneousOrders&, const LobattoHomogeneousOrders&) = default;
+    friend constexpr auto operator<=> (const LobattoHomogeneousOrders&, const LobattoHomogeneousOrders&) = default;
 
   private:
     std::uint8_t p_;
