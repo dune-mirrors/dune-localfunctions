@@ -140,6 +140,12 @@ DUNE_EXPORT auto registerLocalFiniteElement(pybind11::handle scope, const char* 
                             &LocalFiniteElement::localCoefficients,
                             pybind11::return_value_policy::reference_internal);
 
+  // The LocalCoefficients::localKey method returns a Dune::LocalKey, so make
+  // sure the LocalKey class is registered as well.  This is a no-op if the
+  // type has already been registered (e.g. by the dune.localfunctions module),
+  // so it is safe to call this from every module that registers a finite element.
+  detail::registerLocalKey(cls);
+
   // cls.def_property_readonly("localInterpolation", &LocalFiniteElement::localInterpolation);
   cls.def("__len__", [](const LocalFiniteElement& lf) { return lf.size(); });
   cls.def("size", [](const LocalFiniteElement& lf) { return lf.size(); });
