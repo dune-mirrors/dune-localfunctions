@@ -5,6 +5,14 @@ SPDX-License-Identifier: LicenseRef-GPL-2.0-only-with-DUNE-exception
 
 # Master (will become release 2.12)
 
+- Add hierarchic Lobatto finite elements `LobattoCubeLocalFiniteElement` and
+  `LobattoSimplexLocalFiniteElement` of arbitrary order (up to 19) in 1d, 2d, and 3d,
+  following Šolín, Segeth, Doležel: "Higher-Order Finite Element Methods" (2004).
+  The polynomial order can be chosen separately for every edge, face, and the element
+  interior (anisotropic on cubes) using `LobattoOrders`. The shape functions on edges and
+  faces are oriented by a global orientation passed as `Experimental::FaceOrientations`,
+  such that a conforming global basis requires no further DOF permutation or sign changes.
+
 - The `LagrangeLocalFiniteElementCache` now supports run-time order.
   Setting the compile-time order template parameter to the special indicator value `-1`
   allows to select the order at run-time by passing it as constructor argument.

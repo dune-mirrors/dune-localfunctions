@@ -8,6 +8,7 @@ add_subdirectory(dualmortarbasis)
 add_subdirectory(enriched)
 add_subdirectory(hierarchical)
 add_subdirectory(lagrange)
+add_subdirectory(lobatto)
 add_subdirectory(meta)
 add_subdirectory(mimetic)
 add_subdirectory(monomial)
@@ -27,6 +28,7 @@ install(FILES
   enriched.hh
   hierarchical.hh
   lagrange.hh
+  lobatto.hh
   mimetic.hh
   monomial.hh
   nedelec.hh
