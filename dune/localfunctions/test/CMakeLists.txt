@@ -17,6 +17,8 @@ dune_add_test(SOURCES hierarchicalelementtest.cc)
 dune_add_test(SOURCES testgenericfem.cc)
 
 dune_add_test(SOURCES lagrangeshapefunctiontest.cc)
+add_dune_mpfr_flags(lagrangeshapefunctiontest)
+add_dune_quadmath_flags(lagrangeshapefunctiontest)
 
 dune_add_test(SOURCES monomialshapefunctiontest.cc)
 

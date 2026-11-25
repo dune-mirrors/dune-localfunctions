@@ -30,6 +30,16 @@ double TOL = 1e-9;
 // precision -- so we have to be a little bit more tolerant here.
 double jacobianTOL = 1e-5;  // sqrt(TOL)
 
+// Return max(|x|, 1) in the field type of x. The function abs is found by ADL
+// to support also non-builtin number types, like Dune::Float128 or Dune::BigFloat.
+template<class T>
+T absOrOne (const T& x)
+{
+  using std::abs;
+  T absX = abs(x);
+  return (absX > 1) ? absX : T(1);
+}
+
 // This class wraps one shape function of a local finite element as a callable
 // that can be fed to the LocalInterpolation::interpolate method.
 template<class FE>
@@ -119,6 +129,7 @@ bool testCanRepresentConstants(const FE& fe,
 {
   typedef typename FE::Traits::LocalBasisType LB;
   using RangeType = typename LB::Traits::RangeType;
+  using RangeFieldType = typename LB::Traits::RangeFieldType;
 
   bool success = true;
 
@@ -126,7 +137,7 @@ bool testCanRepresentConstants(const FE& fe,
   auto constantOne = [](const typename LB::Traits::DomainType& xi) { return RangeType(1.0); };
 
   // Project the constant function onto the FE space
-  std::vector<double> coefficients;
+  std::vector<RangeFieldType> coefficients;
   fe.localInterpolation().interpolate(constantOne, coefficients);
 
   // A set of test points
@@ -228,14 +239,15 @@ bool testJacobian(const FE& fe,
         for(int l=0; l < LB::Traits::dimRange; ++l) {
 
           // The current partial derivative, just for ease of notation
-          double derivative = jacobians[j][l][k];
+          using RangeFieldType = typename LB::Traits::RangeFieldType;
+          RangeFieldType derivative = jacobians[j][l][k];
 
-          double finiteDiff = (upValues[j][l] - downValues[j][l])
+          RangeFieldType finiteDiff = (upValues[j][l] - downValues[j][l])
                               / (2*jacobianTOL);
 
           // Check
-          if ( std::abs(derivative-finiteDiff) >
-               TOL/jacobianTOL*((std::abs(finiteDiff)>1) ? std::abs(finiteDiff) : 1.) )
+          using std::abs;
+          if ( abs(derivative-finiteDiff) > TOL/jacobianTOL*absOrOne(finiteDiff) )
           {
             std::cout << std::setprecision(16);
             std::cout << "Bug in evaluateJacobian() for finite element type "
@@ -341,9 +353,9 @@ struct TestPartial
         for (int l = 0; l < FE::Traits::LocalBasisType::Traits::dimRange; ++l)
         {
           // Check the 'partial' method
-          if (std::abs(partialValues[j][l] - referenceValues[j][l])
-              > TOL / jacobianTOL
-                * ((std::abs(referenceValues[j][l]) > 1) ? std::abs(referenceValues[j][l]) : 1.))
+          using std::abs;
+          if (abs(partialValues[j][l] - referenceValues[j][l])
+              > TOL / jacobianTOL * absOrOne(referenceValues[j][l]))
           {
             std::cout << std::setprecision(16);
             std::cout << "Bug in partial() for finite element type "
@@ -441,9 +453,9 @@ struct TestPartial
 
             // Check the 'partial' method
             RangeField partialDerivative = firstPartialDerivatives[j][l];
-            if (std::abs(partialDerivative - finiteDiff)
-                > TOL / jacobianTOL
-                  * ((std::abs(finiteDiff) > 1) ? std::abs(finiteDiff) : 1.))
+            using std::abs;
+            if (abs(partialDerivative - finiteDiff)
+                > TOL / jacobianTOL * absOrOne(finiteDiff))
             {
               std::cout << std::setprecision(16);
               std::cout << "Bug in partial() for finite element type "
@@ -579,8 +591,9 @@ struct TestPartial
               RangeField partialDerivative = partialHessians[k][j][dir0][dir1];
 
               // Check
-              if (std::abs(partialDerivative - finiteDiff)
-                  > eps / delta * (std::max(std::abs(finiteDiff), 1.0)))
+              using std::abs;
+              if (abs(partialDerivative - finiteDiff)
+                  > eps / delta * absOrOne(finiteDiff))
               {
                 std::cout << std::setprecision(16);
                 std::cout << "Bug in partial() for finite element type "

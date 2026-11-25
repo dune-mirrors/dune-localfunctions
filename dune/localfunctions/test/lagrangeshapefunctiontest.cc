@@ -7,8 +7,11 @@
 #include <typeinfo>
 #include <fenv.h>
 
+#include <dune/common/bigfloat.hh>
 #include <dune/common/classname.hh>
+#include <dune/common/quadmath.hh>
 #include <dune/common/test/testsuite.hh>
+#include <dune/common/typelist.hh>
 
 #include <dune/localfunctions/lagrange/p0.hh>
 #include <dune/localfunctions/lagrange/lagrangelfecache.hh>
@@ -216,6 +219,29 @@ int main (int argc, char *argv[])
       testSuite.subTest(testVirtualLFE(lfe, DisableNone, diffOrder));
     }
   });
+
+  // Cube implementations with non-builtin domain and range field types
+  auto testFieldTypes = [&]<class D, class R>(Dune::MetaType<D>, Dune::MetaType<R>)
+  {
+    Dune::Hybrid::forEach(std::index_sequence<1,2,3>{},[&](auto dim)
+    {
+      Dune::Hybrid::forEach(std::index_sequence<1,2>{},[&](auto order)
+      {
+        auto lfe = LagrangeCubeLocalFiniteElement<D,R,dim,order>();
+        testSuite.check(testFE(lfe, DisableNone, 2))
+          << "testFE failed for " << Dune::className(lfe);
+      });
+    });
+  };
+
+#if HAVE_QUADMATH
+  testFieldTypes(Dune::MetaType<double>{}, Dune::MetaType<Dune::Float128>{});
+  testFieldTypes(Dune::MetaType<Dune::Float128>{}, Dune::MetaType<Dune::Float128>{});
+#endif
+#if HAVE_MPFR
+  testFieldTypes(Dune::MetaType<double>{}, Dune::MetaType<Dune::BigFloat<128>>{});
+  testFieldTypes(Dune::MetaType<Dune::BigFloat<128>>{}, Dune::MetaType<Dune::BigFloat<128>>{});
+#endif
 
   // Test the LagrangeLocalFiniteElementCache
 
