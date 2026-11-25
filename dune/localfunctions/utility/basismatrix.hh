@@ -18,7 +18,7 @@ namespace Dune
   * A dense matrix representation of a ''polynomial''
   * basis. Its represent a basis as a linear
   * combination of a second basis, i.e., a
-  * monomial basis. It is simular to the PolynomialBasis
+  * monomial basis. It is similar to the PolynomialBasis
   * but it not derived from the LocalBasis class.
   * It is used to define a ''pre basis''.
   ****************************************/

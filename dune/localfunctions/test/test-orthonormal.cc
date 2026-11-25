@@ -24,7 +24,7 @@
  * topologies up to 4d are tested. Note, this may lead to prolonged
  * compiler runs.
  *
- * For debugging purpuse the functions and the derivatives can be
+ * For debugging purposes the functions and the derivatives can be
  * printed. You have to define the macro TEST_OUTPUT_FUNCTIONS to
  * activate this function.
  */
