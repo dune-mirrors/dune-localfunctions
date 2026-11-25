@@ -26,7 +26,7 @@ namespace Dune
   /**
    * This is the basis class for a ''polynomial''
    * basis, i.e., a basis consisting of linear
-   * combiniations of a underlying second basis set.
+   * combinations of an underlying second basis set.
    * Examples are standard polynomials where the
    * underlying basis is given by the MonomialBasis
    * class. The basis evaluation is given by the matrix
@@ -48,9 +48,9 @@ namespace Dune
    *              int order
    *              DomainVector x
    *              Container val
-   * \tparam CM storage for coefficience with
+   * \tparam CM storage for coefficients with
    *           typedef Field -> field of coefficience
-   *           static const int dimRange -> coeficience are of type
+   *           static const int dimRange -> coefficients are of type
    *                                        FieldMatrix<Field,dimRange,dimRange>
    *           void mult( val, y )
    *              Container val

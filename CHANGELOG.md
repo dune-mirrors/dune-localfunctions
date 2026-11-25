@@ -24,7 +24,7 @@ SPDX-License-Identifier: LicenseRef-GPL-2.0-only-with-DUNE-exception
 - Removed deprecated header `dune/localfunctions/lagrane/pq22d.hh`.
   Use LocalFiniteElementVariant or the virtual interface directly.
 
-- Removed deprecated class `Presicion`. Use `std::numeric_limits<>::digits` instead.
+- Removed deprecated class `Precision`. Use `std::numeric_limits<>::digits` instead.
 
 - Removed deprecated and empty header `dune/localfunctions/common/localinterpolation.hh`.
 

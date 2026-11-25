@@ -70,7 +70,7 @@ namespace Dune
     }
 
     /**
-     * \brief calculate the i`th multi index in graded lexigraphic order
+     * \brief calculate the i`th multi index in graded lexicographic order
      *
      * \tparam d     number of components of the multi index
      * \tparam kMax  maximum absolute value to consider. (default is `unlimited`)
