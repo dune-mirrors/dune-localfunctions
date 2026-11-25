@@ -6,6 +6,7 @@ install(FILES
   interfaceswitch.hh
   localbasis.hh
   localkey.hh
+  faceorientations.hh
   localfiniteelement.hh
   localfiniteelementtraits.hh
   localfiniteelementvariant.hh

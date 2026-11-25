@@ -40,6 +40,8 @@ dune_add_test(SOURCES test-discontinuous.cc)
 
 dune_add_test(SOURCES test-enriched.cc)
 
+dune_add_test(SOURCES test-faceorientations.cc)
+
 dune_add_test(SOURCES test-pk2d.cc)
 
 dune_add_test(SOURCES test-power-monomial.cc)
